@@ -4,6 +4,7 @@ import { analyzeResume } from "../config/axios.config";
 import { useNavigate } from "react-router-dom";
 import { removeUserData } from "../Helper/LocalStorageHelper";
 import { INSTRUCTIONS } from "../config/constants.jsx";
+import QuestionComponent from '../component/QuestionComponent';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -16,8 +17,7 @@ const Dashboard = () => {
   const [missingText, setMissingText] = useState("");
   const [additionalText, setAdditionalText] = useState("");
 
-  
-  // New state variables for questions
+  // State for questions
   const [beginnerQuestions, setBeginnerQuestions] = useState([]);
   const [intermediateQuestions, setIntermediateQuestions] = useState([]);
   const [expertQuestions, setExpertQuestions] = useState([]);
@@ -29,12 +29,15 @@ const Dashboard = () => {
   const [responseMessage, setResponseMessage] = useState("");
   const [activeSection, setActiveSection] = useState(null);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [submissionId, setSubmissionId] = useState(null);
 
   // Helper to check if any question categories have items
   const hasQuestions = () => {
-    return beginnerQuestions.length > 0 ||
+    return (
+      beginnerQuestions.length > 0 ||
       intermediateQuestions.length > 0 ||
-      expertQuestions.length > 0;
+      expertQuestions.length > 0
+    );
   };
 
   // Function to toggle section visibility
@@ -52,21 +55,17 @@ const Dashboard = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!jobDescription || !resume) {
-      alert("Please provide a job description and attach a resume.");
-      return;
-    }
-
     setLoading(true);
     setResponseMessage("");
 
     try {
+      // Call analyzeResume with the correct parameters
       const result = await analyzeResume(jobDescription, resume, notes);
 
-      console.log("Full Response Data:", result);  // Debugging
+      console.log("Full Response Data:", result); // Debugging
 
-      if (result.success && result.data && result.data.analysis) {  // Fix: Check result.data.analysis
-        const analysis = result.data.analysis;  // Now safely accessing analysis
+      if (result.success && result.data && result.data.analysis) {
+        const analysis = result.data.analysis;
 
         setMatchingText(analysis.matching_areas?.join(", ") || "No matching areas found");
         setMissingText(analysis.missing_areas?.join(", ") || "No missing areas found");
@@ -76,24 +75,44 @@ const Dashboard = () => {
         setBeginnerQuestions(analysis.screening_questions?.beginner || []);
         setIntermediateQuestions(analysis.screening_questions?.intermediate || []);
         setExpertQuestions(analysis.screening_questions?.expert || []);
-        setShowInstructions(false); 
+
+        // Set submission ID from the response
+        setSubmissionId(result.data.submission_id);
+
+        setShowInstructions(false);
         setResponseMessage("Analysis completed successfully!");
       } else {
         setResponseMessage(`Error: Analysis data is missing.`);
       }
     } catch (error) {
-      setResponseMessage("An unexpected error occurred.");
+      setResponseMessage("Failed to analyze. Please try again.");
       console.error("Request error:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Function to add a question to the appropriate category
+  const onAddQuestion = (question, level, answer) => {
+    const newQuestion = { question, answer };
 
+    switch (level) {
+      case "Beginner":
+        setBeginnerQuestions((prev) => [...prev, newQuestion]);
+        break;
+      case "Intermediate":
+        setIntermediateQuestions((prev) => [...prev, newQuestion]);
+        break;
+      case "Expert":
+        setExpertQuestions((prev) => [...prev, newQuestion]);
+        break;
+      default:
+        break;
+    }
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 p-4 md:p-6">
-
       {/* Left Panel */}
       <div className="w-full md:w-1/3 bg-white p-4 md:p-6 shadow-lg rounded-xl flex flex-col border border-gray-200">
         <div className="flex justify-between items-center mb-4">
@@ -128,18 +147,10 @@ const Dashboard = () => {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
         />
+
         {loading && (
           <div className="w-full bg-gray-300 h-2 rounded-full overflow-hidden mt-2 relative">
             <div className="h-full rounded-full animate-[loading_1.5s_linear_infinite] bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"></div>
-            <style>
-              {`
-        @keyframes loading {
-          0% { width: 0%; }
-          50% { width: 80%; }
-          100% { width: 100%; }
-        }
-      `}
-            </style>
           </div>
         )}
 
@@ -150,30 +161,29 @@ const Dashboard = () => {
         )}
 
         {/* Only show these areas if questions are available */}
-        {hasQuestions() && [
-          { label: "Matching Areas", state: showMatching, setter: setShowMatching, value: matchingText },
-          { label: "Missing Areas", state: showMissing, setter: setShowMissing, value: missingText },
-          { label: "Additional Areas", state: showAdditional, setter: setShowAdditional, value: additionalText },
-        ].map(({ label, state, setter, value }) => (
-          <div className="mb-4" key={label}>
-            <button
-              className="w-full bg-blue-600 text-white py-2 rounded-lg focus:outline-none shadow-md"
-              onClick={() => setter(!state)}
-            >
-              {label}
-            </button>
-            {state && (
-              <textarea
-                className="w-full p-3 border rounded-lg mt-2 focus:ring focus:ring-blue-300"
-                placeholder={label}
-                value={value}
-                readOnly
-              />
-            )}
-          </div>
-        ))}
-
-
+        {hasQuestions() &&
+          [
+            { label: "Matching Areas", state: showMatching, setter: setShowMatching, value: matchingText },
+            { label: "Missing Areas", state: showMissing, setter: setShowMissing, value: missingText },
+            { label: "Additional Areas", state: showAdditional, setter: setShowAdditional, value: additionalText },
+          ].map(({ label, state, setter, value }) => (
+            <div className="mb-4" key={label}>
+              <button
+                className="w-full bg-blue-600 text-white py-2 rounded-lg focus:outline-none shadow-md"
+                onClick={() => setter(!state)}
+              >
+                {label}
+              </button>
+              {state && (
+                <textarea
+                  className="w-full p-3 border rounded-lg mt-2 focus:ring focus:ring-blue-300"
+                  placeholder={label}
+                  value={value}
+                  readOnly
+                />
+              )}
+            </div>
+          ))}
       </div>
 
       {/* Right Panel */}
@@ -191,40 +201,44 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Chat Messages */}
-        {/* Display beginner questions */}
-        {beginnerQuestions.map((item, index) => (
-          <div key={`beginner-${index}`} className="mb-4">
-            <div className="text-black font-medium">BQ : {item.question}</div>
-            <div className="text-black font-medium">Answer {item.answer}</div>
-          </div>
-        ))}
+        {/* Display Beginner Questions */}
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold text-gray-700">Beginner Questions</h2>
+          {beginnerQuestions.map((item, index) => (
+            <div key={`beginner-${index}`} className="mb-4">
+              <div className="text-black font-medium">BQ : {item.question}</div>
+              <div className="text-black font-medium">Answer {item.answer}</div>
+            </div>
+          ))}
+        </div>
 
-        {/* Display intermediate questions */}
-        {intermediateQuestions.map((item, index) => (
-          <div key={`intermediate-${index}`} className="mb-4">
-            <div className="text-black font-medium">IQ : {item.question}</div>
-            <div className="text-black font-medium">Answer  {item.answer}</div>
-          </div>
-        ))}
+        {/* Display Intermediate Questions */}
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold text-gray-700">Intermediate Questions</h2>
+          {intermediateQuestions.map((item, index) => (
+            <div key={`intermediate-${index}`} className="mb-4">
+              <div className="text-black font-medium">IQ : {item.question}</div>
+              <div className="text-black font-medium">Answer {item.answer}</div>
+            </div>
+          ))}
+        </div>
 
-        {/* Display expert questions */}
-        {expertQuestions.map((item, index) => (
-          <div key={`expert-${index}`} className="mb-4">
-            <div className="text-black font-medium">EQ : {item.question}</div>
-            <div className="text-black font-medium">Answer {item.answer}</div>
-          </div>
-        ))}
+        {/* Display Expert Questions */}
+        <div className="mt-4">
+          <h2 className="text-lg font-semibold text-gray-700">Expert Questions</h2>
+          {expertQuestions.map((item, index) => (
+            <div key={`expert-${index}`} className="mb-4">
+              <div className="text-black font-medium">EQ : {item.question}</div>
+              <div className="text-black font-medium">Answer {item.answer}</div>
+            </div>
+          ))}
+        </div>
+
         {showInstructions && INSTRUCTIONS.getContent()}
 
-        {/* Input Box - Only show if questions are available */}
-        {hasQuestions() && (
-          <div className="p-3 bg-white rounded-b-xl flex items-center border-t">
-            <input className="flex-1 p-2 border border-gray-800 rounded-lg" placeholder="Type a prompt..." />
-            <button className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg">B</button>
-            <button className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg">I</button>
-            <button className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg">E</button>
-          </div>
+        {/* Render QuestionComponent if submissionId exists */}
+        {submissionId && (
+          <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
         )}
       </div>
     </div>
