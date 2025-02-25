@@ -112,9 +112,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-6">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-1">
       {/* Left Panel */}
-      <div className="w-full md:w-1/3 bg-white md:p-6 shadow-lg rounded-xl flex flex-col border border-gray-200">
+      <div className="w-full md:w-1/3 bg-white md:p-4 shadow-lg rounded-xl flex flex-col border border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-700">Job Description</h2>
           <button
@@ -148,11 +148,20 @@ const Dashboard = () => {
           onChange={(e) => setNotes(e.target.value)}
         />
 
-        {loading && (
-          <div className="w-full bg-gray-300 h-2 rounded-full overflow-hidden mt-2 relative">
-            <div className="h-full rounded-full animate-[loading_1.5s_linear_infinite] bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"></div>
-          </div>
-        )}
+         {loading && (
+            <div className="w-full bg-gray-300 h-2 rounded-full overflow-hidden mt-2 relative">
+              <div className="h-full rounded-full animate-[loading_1.5s_linear_infinite] bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"></div>
+              <style>
+                {`
+                  @keyframes loading {
+                    0% { width: 0%; }
+                    50% { width: 80%; }
+                    100% { width: 100%; }
+                  }
+                `}
+              </style>
+            </div>
+          )}
 
         {responseMessage && (
           <div className="mt-1 p-3 bg-gray-200 rounded-lg mb-4 text-center">
@@ -188,10 +197,11 @@ const Dashboard = () => {
 
       {/* Right Panel */}
       <div
-        className="w-full md:w-2/3 bg-white p-4 md:p-6 shadow-lg rounded-xl mt-4 md:mt-0 md:ml-6 flex flex-col border border-gray-200"
+        className="w-full md:w-2/3 bg-white md:p-1 shadow-lg rounded-xl mt-1 md:mt-0 md:ml-1 flex flex-col border border-gray-200"
         style={{ backgroundImage: "url('/whatsapp-bg.png')", backgroundSize: "cover" }}
       >
-        <div className="bg-white text-black p-3 rounded-t-xl flex justify-between items-center border-b">
+        
+        <div className="position: fixedbg-white text-black p-3 rounded-t-xl flex justify-between items-center border-b">
           <span className="font-bold text-xl">Recruiter Copilot Chat</span>
           <button
             className="text-red-500 flex items-center hover:text-red-700 transition duration-200"
