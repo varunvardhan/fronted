@@ -203,7 +203,7 @@ const Dashboard = () => {
 
         {/* Display Beginner Questions */}
         <div className="mt-4">
-          <h2 className="text-lg font-semibold text-gray-700">Beginner Questions</h2>
+         
           {beginnerQuestions.map((item, index) => (
             <div key={`beginner-${index}`} className="mb-4">
               <div className="text-black font-medium">BQ : {item.question}</div>
@@ -214,7 +214,7 @@ const Dashboard = () => {
 
         {/* Display Intermediate Questions */}
         <div className="mt-4">
-          <h2 className="text-lg font-semibold text-gray-700">Intermediate Questions</h2>
+        
           {intermediateQuestions.map((item, index) => (
             <div key={`intermediate-${index}`} className="mb-4">
               <div className="text-black font-medium">IQ : {item.question}</div>
@@ -225,7 +225,7 @@ const Dashboard = () => {
 
         {/* Display Expert Questions */}
         <div className="mt-4">
-          <h2 className="text-lg font-semibold text-gray-700">Expert Questions</h2>
+       
           {expertQuestions.map((item, index) => (
             <div key={`expert-${index}`} className="mb-4">
               <div className="text-black font-medium">EQ : {item.question}</div>
