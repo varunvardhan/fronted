@@ -1,11 +1,11 @@
 import React from "react";
 import { useForm } from "react-hook-form";
-import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
 import { loginUser } from "../service/auth.service";
-
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const Login = () => {
   const { login } = useAuth();
@@ -52,7 +52,17 @@ const Login = () => {
       if (error.response) {
         switch (error.response.status) {
           case 401:
-            toast.error("Invalid credentials");
+            toast.error("Invalid credentials", {
+              position: "top-center",
+              autoClose: 500,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+              progress: undefined,
+              theme: "colored",
+            });
+            
             break;
           case 404:
             toast.error("User does not exist!");
@@ -115,11 +125,7 @@ const Login = () => {
               Reset
             </button>
           </div>
-          <div className="text-center mt-2">
-            <button type="button" className="text-indigo-600 hover:underline" onClick={() => alert('Redirecting to Forgot Password')}>
-              Forgot Password?
-            </button>
-          </div>
+          
         </form>
       </div>
     </div>

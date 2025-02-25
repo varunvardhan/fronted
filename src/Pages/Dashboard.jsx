@@ -112,9 +112,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 p-4 md:p-6">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-6">
       {/* Left Panel */}
-      <div className="w-full md:w-1/3 bg-white p-4 md:p-6 shadow-lg rounded-xl flex flex-col border border-gray-200">
+      <div className="w-full md:w-1/3 bg-white md:p-6 shadow-lg rounded-xl flex flex-col border border-gray-200">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold text-gray-700">Job Description</h2>
           <button
