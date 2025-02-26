@@ -3,6 +3,7 @@ import { askAI } from "../service/auth.ai.service"; // Import your service funct
 
 const QuestionComponent = ({ submissionId, onAddQuestion }) => {
   const [question, setQuestion] = useState("");
+  const [loading, setLoading] = useState(false); // Loading state
 
   // Function to check if the question is a meta-question
   const isMetaQuestion = (question) => {
@@ -11,14 +12,11 @@ const QuestionComponent = ({ submissionId, onAddQuestion }) => {
 
   // Function to normalize the API response and extract only the questions
   const normalizeResponse = (response) => {
-    // Remove the prefix (e.g., "BQ :") and any introductory message
     const cleanedResponse = response
-      .replace(/^(BQ|IQ|EQ)\s*:\s*/, "") // Remove "BQ :", "IQ :", or "EQ :"
-      .replace(/Here are \d+ beginner questions for the candidate:\s*/, ""); // Remove introductory message
+      .replace(/^(BQ|IQ|EQ)\s*:\s*/, "")
+      .replace(/Here are \d+ beginner questions for the candidate:\s*/, "");
 
-    // Split the response by numbers (e.g., "1.", "2.", etc.) and filter out empty lines
     const questions = cleanedResponse.split(/\d+\.\s*/).filter((q) => q.trim() !== "");
-
     return questions;
   };
 
@@ -34,26 +32,23 @@ const QuestionComponent = ({ submissionId, onAddQuestion }) => {
       return;
     }
 
-    // Determine the level text
     const levelText = {
       B: "Beginner",
       I: "Intermediate",
       E: "Expert",
     }[level];
 
+    setLoading(true); // Show loading bar
+
     try {
       const result = await askAI(question, submissionId);
 
       if (isMetaQuestion(question)) {
-        // If it's a meta-question, normalize the response and extract only the questions
         const questions = normalizeResponse(result.data.answer);
-
-        // Add each question to the appropriate category
         questions.forEach((q) => {
-          onAddQuestion(q.trim(), levelText, ""); // No answer is displayed
+          onAddQuestion(q.trim(), levelText, "");
         });
       } else {
-        // If it's a regular question, add it as a single question-answer pair
         onAddQuestion(question, levelText, result.data.answer);
       }
     } catch (error) {
@@ -61,36 +56,47 @@ const QuestionComponent = ({ submissionId, onAddQuestion }) => {
       alert("Failed to fetch questions. Please try again.");
     }
 
-    // Clear the input field after adding the question
-    setQuestion("");
+    setLoading(false); // Hide loading bar
+    setQuestion(""); // Clear input
   };
 
   return (
     <div className="p-3 bg-white rounded-b-xl flex items-center border-t">
-      {/* Input field for typing a custom question */}
+      {/* Progress bar (only visible when loading) */}
+      
+      {loading && (
+  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-red-500 via-green-500 to-blue-500 animate-[loadingRGB_2s_linear_infinite] transition-opacity duration-300"></div>
+)}
+
+
+      {/* Input field */}
       <input
         className="flex-1 p-2 border border-gray-800 rounded-lg"
         placeholder="Type a question..."
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
+        disabled={loading} // Disable input when loading
       />
 
       {/* Level buttons (B, I, E) */}
       <button
-        className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg"
+        className="ml-2 bg-red-200 border border-gray-600 text-blue-500 p-2 rounded-lg disabled:opacity-50"
         onClick={() => handleLevelClick("B")}
+        disabled={loading} // Disable button when loading
       >
         B
       </button>
       <button
-        className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg"
+        className="ml-2 bg-red-200 border border-gray-600 text-[brown] p-2 rounded-lg disabled:opacity-50"
         onClick={() => handleLevelClick("I")}
+        disabled={loading} // Disable button when loading
       >
         I
       </button>
       <button
-        className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg"
+        className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg disabled:opacity-50"
         onClick={() => handleLevelClick("E")}
+        disabled={loading} // Disable button when loading
       >
         E
       </button>

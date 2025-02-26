@@ -223,23 +223,23 @@ const Dashboard = () => {
     {/* Display Beginner Questions */}
     {beginnerQuestions.map((item, index) => (
       <div key={`beginner-${index}`} className="mb-4">
-        <div className="text-black font-bold italic font-medium">BQ : {item.question}</div>
-        <div className="text-black font-medium">Answer: {item.answer}</div>
+        <div className="text-blue-500 italic font-medium">BQ : {item.question}</div>
+        <div className="text-blue-500 font-medium">Answer: {item.answer}</div>
       </div>
     ))}
 
     {/* Display Intermediate Questions */}
     {intermediateQuestions.map((item, index) => (
       <div key={`intermediate-${index}`} className="mb-4">
-        <div className="text-black font-bold italic font-medium">IQ : {item.question}</div>
-        <div className="text-black font-medium">Answer: {item.answer}</div>
+        <div className="text-[brown] italic font-medium">IQ : {item.question}</div>
+        <div className="text-[brown] font-medium">Answer: {item.answer}</div>
       </div>
     ))}
 
     {/* Display Expert Questions */}
     {expertQuestions.map((item, index) => (
       <div key={`expert-${index}`} className="mb-4">
-        <div className="text-black font-bold italic font-medium">EQ : {item.question}</div>
+        <div className="text-black italic font-medium">EQ : {item.question}</div>
         <div className="text-black font-medium">Answer: {item.answer}</div>
       </div>
     ))}
