@@ -123,7 +123,7 @@ const Dashboard = () => {
     </div>
 
     <textarea
-      className="w-full p-1 h-20 border rounded-lg mb-2 focus:ring focus:ring-blue-300"
+      className="w-full p-1 h-40 border rounded-lg mb-2 focus:ring focus:ring-blue-300"
       placeholder="Type or paste the job description here...."
       value={jobDescription}
       onChange={(e) => setJobDescription(e.target.value)}
@@ -138,7 +138,7 @@ const Dashboard = () => {
 
     <h2 className="text-lg font-bold mb-2 text-gray-700">Additional Notes</h2>
     <textarea
-      className="w-full p-1 h-20 border rounded-lg mb-4 focus:ring focus:ring-blue-300"
+      className="w-full p-1 h-40 border rounded-lg mb-4 focus:ring focus:ring-blue-300"
       placeholder="Type or paste additional notes here...."
       value={notes}
       onChange={(e) => setNotes(e.target.value)}
