@@ -35,29 +35,32 @@ const QuestionComponent = ({ submissionId, onAddQuestion }) => {
     const levelText = {
       B: "Beginner",
       I: "Intermediate",
-      E: "Expert",
+      E: "Expert"
     }[level];
 
     setLoading(true); // Show loading bar
 
     try {
       const result = await askAI(question, submissionId);
+      const responseData = JSON.parse(result.data.answer); // Parse JSON response
+      
+      onAddQuestion(`${question}`, "Prompt", "");
 
-      if (isMetaQuestion(question)) {
-        const questions = normalizeResponse(result.data.answer);
-        questions.forEach((q) => {
-          onAddQuestion(q.trim(), levelText, "");
-        });
+      if (responseData.questions && Array.isArray(responseData.questions)) {
+          responseData.questions.forEach((q) => {
+              onAddQuestion(q.question.trim(), levelText, q.expected_answer.trim());
+          });
       } else {
-        onAddQuestion(question, levelText, result.data.answer);
+          console.error("Invalid response format:", responseData);
+          alert("Unexpected response format. Please try again.");
       }
-    } catch (error) {
+  } catch (error) {
       console.error("Error:", error);
       alert("Failed to fetch questions. Please try again.");
-    }
-
-    setLoading(false); // Hide loading bar
-    setQuestion(""); // Clear input
+  }
+  
+  setLoading(false); // Hide loading bar
+  setQuestion(""); // Clear input
   };
 
   return (

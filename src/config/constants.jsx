@@ -42,12 +42,12 @@ export const INSTRUCTIONS = {
           </li>
 
           <li className="flex items-start gap-2">
-            <span className="font-semibold text-green-600">IQ (Intermediate Level Question):</span>
+            <span className="font-semibold text-[brown]">IQ (Intermediate Level Question):</span>
             <span>Detailed questions that require analysis and application of knowledge.</span>
           </li>
 
           <li className="flex items-start gap-2">
-            <span className="font-semibold text-red-600">EQ (Expert Level Question):</span>
+            <span className="font-semibold text-black-600">EQ (Expert Level Question):</span>
             <span>Advanced questions that involve critical thinking, problem-solving, and real-world scenarios.</span>
           </li>
         </ul>
