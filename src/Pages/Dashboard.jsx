@@ -33,6 +33,7 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(null);
   const [showInstructions, setShowInstructions] = useState(true);
   const [submissionId, setSubmissionId] = useState(null);
+  
 
   // Helper to check if any question categories have items
   const hasQuestions = () => {
@@ -70,7 +71,11 @@ const Dashboard = () => {
       if (result.success && result.data && result.data.analysis) {
         const analysis = result.data.analysis;
 
-        setMatchingText(analysis.matching_areas?.join(", ") || "No matching areas found");
+        setMatchingText(
+          analysis.matching_areas?.map(area => `${area.skill} (${area.years_of_experience})`).join(", ") || 
+          "No matching areas found"
+        );
+        
         setMissingText(analysis.missing_areas?.join(", ") || "No missing areas found");
         setAdditionalText(analysis.additional_areas?.join(", ") || "No additional areas found");
 
