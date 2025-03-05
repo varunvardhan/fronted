@@ -15,9 +15,10 @@ const Dashboard = () => {
   const [showAdditional, setShowAdditional] = useState(false);
 
   const [matchingText, setMatchingText] = useState("");
+  const [matchingTextRightPanel, setMatchingTextRightPanel] = useState("");
   const [missingText, setMissingText] = useState("");
   const [additionalText, setAdditionalText] = useState("");
-
+ 
   // State for questions
   const [beginnerQuestions, setBeginnerQuestions] = useState([]);
   const [intermediateQuestions, setIntermediateQuestions] = useState([]);
@@ -33,6 +34,9 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(null);
   const [showInstructions, setShowInstructions] = useState(true);
   const [submissionId, setSubmissionId] = useState(null);
+  const [matchingScore, setMatchingScore] = useState(null);
+
+  const [activeTab, setActiveTab] = useState("QA");
   
 
   // Helper to check if any question categories have items
@@ -72,9 +76,17 @@ const Dashboard = () => {
         const analysis = result.data.analysis;
 
         setMatchingText(
-          analysis.matching_areas?.map(area => `${area.skill} (${area.years_of_experience})`).join(", ") || 
+          analysis.matching_areas?.map(area => `${area.skill}`).join(", ") || 
           "No matching areas found"
         );
+
+        setMatchingTextRightPanel(
+          analysis.matching_areas
+            ?.map(area => `${area.skill} (${area.years_of_experience || "N/A"})`)
+            .join("\n") || "No matching areas found"
+        );
+        
+        
         
         setMissingText(analysis.missing_areas?.join(", ") || "No missing areas found");
         setAdditionalText(analysis.additional_areas?.join(", ") || "No additional areas found");
@@ -83,9 +95,11 @@ const Dashboard = () => {
         setBeginnerQuestions(analysis.screening_questions?.beginner || []);
         setIntermediateQuestions(analysis.screening_questions?.intermediate || []);
         setExpertQuestions(analysis.screening_questions?.expert || []);
+       
 
         // Set submission ID from the response
         setSubmissionId(result.data.submission_id);
+        setMatchingScore(result.data.analysis.matching_score);
 
         setShowInstructions(false);
         setResponseMessage("Analysis completed successfully!");
@@ -135,7 +149,7 @@ const Dashboard = () => {
     <div className="border border-gray-200 rounded-lg p-2 shadow-md">
 
     <div className="flex justify-between items-center mt-4 mb-2">
-      <h2 className="text-lg font-bold text-gray-700">Job Description :</h2>
+      <h2 className="text-lg font-bold text-gray-700">Job Description</h2>
     </div>
 
     <textarea
@@ -145,14 +159,14 @@ const Dashboard = () => {
       onChange={(e) => setJobDescription(e.target.value)}
     />
 
-    <h2 className="text-lg font-bold mb-2 text-gray-700">Attach Resume:</h2>
+    <h2 className="text-lg font-bold mb-2 text-gray-700">Attach Resume (PDF or DOCX only)</h2>
     <input
       type="file"
       className="w-full bg-blue-500 text-white rounded-lg cursor-pointer mb-2"
       onChange={handleUpload}
     />
 
-    <h2 className="text-lg font-bold mb-1 text-gray-700">Additional Notes</h2>
+    <h2 className="text-lg font-bold mb-1 text-gray-700">Additional Notes (Optional)</h2>
     <textarea
       className="w-full p-1 h-40 border rounded-lg mb-4 flex flex-col min-h-[80px] "
       placeholder="Type or paste additional notes here...."
@@ -181,53 +195,69 @@ const Dashboard = () => {
       </div>
     )}
 
-    <button
-      className="bg-red-500 w-[100px] text-white mt-2 px-3 py-1 mb-2 rounded-md text-sm shadow-sm hover:bg-red-600"
-      onClick={handleAnalyze}
-      disabled={loading}
-    >
-      {loading ? "Analyzing..." : "Analyze"}
-    </button>
+<div className="relative group inline-block">
+  <button
+    className="bg-red-500 w-[100px] text-white mt-2 px-3 py-1 mb-2 rounded-md text-sm shadow-sm hover:bg-red-600"
+    onClick={handleAnalyze}
+    disabled={loading}
+  >
+    {loading ? "Analyzing..." : "Analyze"}
+  </button>
+
+{/* Tooltip with Overflow Protection */}
+<div className="absolute left-auto sm:left-full top-1/2 sm:top-1/2 mt-1 sm:mt-0 -translate-y-1/2 sm:translate-x-2 bg-gray-900 text-white text-sm px-4 py-3 rounded-md opacity-0 group-hover:opacity-100 transition duration-200 shadow-md w-[300px] sm:w-[500px] h-auto max-w-[500px] break-words text-left">
+  Generate questions across beginner, intermediate, and expert levels to help assess all candidate skills.
+</div>
+
+</div>
 
   </div>
 
     {/* Scrollable Questions Section */}
     {hasQuestions() &&
-      [
-        { label: "Matching Areas", state: showMatching, setter: setShowMatching, value: matchingText },
-        { label: "Missing Areas", state: showMissing, setter: setShowMissing, value: missingText },
-        { label: "Additional Areas", state: showAdditional, setter: setShowAdditional, value: additionalText },
-      ].map(({ label, state, setter, value }) => (
-        <div className="mb-4" key={label}>
-          <button
-            className="w-full bg-blue-600 text-white mt-4 rounded-lg focus:outline-none shadow-md flex justify-between items-center px-4"
-            onClick={() => setter(!state)}
-          >
-            {label}
-            {state ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-          </button>
-          {state && (
-            <textarea
-              className="w-full p-3 border rounded-lg mt-2 focus:ring focus:ring-blue-300"
-              placeholder={label}
-              value={value}
-              readOnly
-            />
-          )}
+  [
+    { label: "Matching Areas", state: showMatching, setter: setShowMatching, value: matchingText },
+    { label: "Missing Areas", state: showMissing, setter: setShowMissing, value: missingText },
+    { label: "Additional Areas", state: showAdditional, setter: setShowAdditional, value: additionalText },
+  ].map(({ label, state, setter, value }) => (
+    <div className="mb-4" key={label}>
+      <div className="relative group w-full">
+        <button
+          className="w-full bg-blue-600 text-white mt-4 rounded-lg focus:outline-none shadow-md flex justify-between items-center px-4 relative"
+          onClick={() => setter(!state)}
+        >
+          {label}
+          {state ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+        </button>
+
+        {/* Tooltip */}
+        <div className="absolute left-1/2 -top-10 -translate-x-1/2 bg-gray-900 text-white text-sm px-3 py-1 rounded-md opacity-0 group-hover:opacity-100 transition duration-200">
+          Click to toggle {label.toLowerCase()}
         </div>
-      ))}
+      </div>
+
+      {state && (
+        <textarea
+          className="w-full p-3 border rounded-lg mt-2 focus:ring focus:ring-blue-300"
+          placeholder={label}
+          value={value}
+          readOnly
+        />
+      )}
+    </div>
+  ))}
+
   </div>
 
 
      {/* Right Panel */}
-<div
-  className="w-full md:w-2/3 bg-white p-4 md:p-6 shadow-lg rounded-xl mt-4 md:mt-0 md:ml-2 flex flex-col border border-gray-200 h-[calc(100vh-20px)]"
+<div className="w-full md:w-2/3 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]"
   style={{ backgroundImage: "url('/whatsapp-bg.png')", backgroundSize: "cover" }}
 >
 
   {/* Fixed Header */}
-  <div className="bg-white text-black p-3 rounded-t-xl flex justify-between items-center border-b shadow-md sticky top-0 z-10">
-    <span className="font-bold text-xl">Recruiter Copilot Chat</span>
+  <div className="bg-white text-black p-2 rounded-t-sm flex justify-between items-center border-b shadow-md sticky top-0">
+    <span className="font-bold text-xl">BMI CoPanelist Chat</span>
     <button
       className="text-red-500 flex items-center hover:text-red-700 transition duration-200"
       onClick={handleLogout}
@@ -236,74 +266,138 @@ const Dashboard = () => {
     </button>
   </div>
 
-  {/* Scrollable Content Area */}
-  <div className="flex-1 overflow-y-auto p-4">
-    {/* Display Beginner Questions */}
-    {beginnerQuestions.map((item, index) => (
-      <div key={`beginner-${index}`} className="mb-4">
-        <div className="text-blue-500 italic font-medium">BQ : {item.question}</div>
-        <div className="text-blue-500 font-medium">Answer: {item.answer}</div>
+  {/* Tab Navigation */}
+  <div className="flex border-b">
+        <button
+          className={`flex-1 p-2 text-center ${activeTab === "QA" ? "font-bold border-b-2 border-blue-500" : "text-gray-500"}`}
+          onClick={() => setActiveTab("QA")}
+        >
+          Q&A
+        </button>
+        <button
+          className={`flex-1 p-2 text-center ${activeTab === "Matching Details" ? "font-bold border-b-2 border-blue-500" : "text-gray-500"}`}
+          onClick={() => setActiveTab("Matching Details")}
+        >
+          JD vs. Candidate Fit Summary
+        </button>
       </div>
-    ))}
 
-    {/* Display Intermediate Questions */}
-    {intermediateQuestions.map((item, index) => (
-      <div key={`intermediate-${index}`} className="mb-4">
-        <div className="text-[brown] italic font-medium">IQ : {item.question}</div>
-        <div className="text-[brown] font-medium">Answer: {item.answer}</div>
-      </div>
-    ))}
+      {/* Scrollable Content Area */}
+      <div className="flex-1 overflow-y-auto p-4">
+        {activeTab === "QA" ? (
+          <>
+            {beginnerQuestions.map((item, index) => (
+              <div key={`beginner-${index}`} className="mb-4">
+              <div className="text-green-950 font-semibold italic text-lg leading-relaxed bg-green-100 p-2 rounded-lg">
+  BQ: {item.question}
+</div>
+<div className="text-green-950 font-semibold text-lg leading-relaxed bg-green-50 p-2 rounded-lg mb-2">
+  Answer: {item.answer}
+</div>
 
-     {/* Display Expert Questions */}
-     {expertQuestions.map((item, index) => (
-      <div key={`expert-${index}`} className="mb-4">
-        <div className="text-black italic font-medium">EQ : {item.question}</div>
-        <div className="text-black font-medium">Answer: {item.answer}</div>
-      </div>
-    ))}
+              </div>
+            ))}
 
-    {allEntries.map((item, index) => (
-    <div key={`entry-${index}`} className="mb-4">
+            {intermediateQuestions.map((item, index) => (
+              <div key={`intermediate-${index}`} className="mb-4">
+               <div className="text-blue-900 italic font-medium text-lg leading-relaxed bg-blue-100 p-3 rounded-lg">
+  IQ: {item.question}
+</div>
+<div className="text-blue-900 font-medium text-lg leading-relaxed bg-blue-50 p-3 rounded-lg mb-2">
+  Answer: {item.answer}
+</div>
+
+              </div>
+            ))}
+
+            {expertQuestions.map((item, index) => (
+              <div key={`expert-${index}`} className="mb-4">
+               <div className="text-[#5A3E1B] italic font-medium text-lg leading-relaxed bg-orange-100 p-3 rounded-lg">
+  EQ: {item.question}
+</div>
+<div className="text-[#5A3E1B] font-medium text-lg leading-relaxed bg-orange-50 p-3 rounded-lg mb-2">
+  Answer: {item.answer}
+</div>
+
+
+              </div>
+            ))}
+
+{allEntries.map((item, index) => (
+  <div key={`entry-${index}`} className="mb-4 p-4 rounded-lg shadow-md">
+    <div
+      className={`italic font-medium text-lg ${
+        item.level === "Beginner" ? "text-green-900 bg-green-100 p-3 rounded-md" :
+        item.level === "Intermediate" ? "text-blue-800 bg-blue-100 p-3 rounded-md" :
+        item.level === "Expert" ? "text-[#8B4513] bg-orange-100 p-3 rounded-md" :
+        item.level === "Prompt" ? "text-black bg-gray-100 p-3 rounded-md" : ""
+      }`}
+    >
+      {item.level === "Beginner" ? "BQ" :
+       item.level === "Intermediate" ? "IQ" :
+       item.level === "Expert" ? "EQ" :
+       item.level === "Prompt" ? "Prompt" : ""} 
+      : {item.question}
+    </div>
+
+    {item.level !== "Prompt" && (
       <div
-        className={`italic font-medium ${
-          item.level === "Beginner" ? "text-blue-500" :
-          item.level === "Intermediate" ? "text-[brown]" :
-          item.level === "Expert" ? "text-black" :
-          item.level === "Prompt" ? "text-gray-600" : ""
+        className={`font-medium text-lg ${
+          item.level === "Beginner" ? "text-green-900 bg-green-50 p-3 rounded-md" :
+          item.level === "Intermediate" ? "text-blue-800 bg-blue-50 p-3 rounded-md" :
+          item.level === "Expert" ? "text-[#8B4513] bg-orange-50 p-3 rounded-md" : ""
         }`}
       >
-        {item.level === "Beginner" ? "BQ" :
-         item.level === "Intermediate" ? "IQ" :
-         item.level === "Expert" ? "EQ" :
-         item.level === "Prompt" ? "Prompt" : ""} 
-        : {item.question}
+        Answer: {item.answer}
       </div>
-
-      {/* Show answer only for non-prompt questions */}
-      {item.level !== "Prompt" && (
-        <div
-          className={`font-medium ${
-            item.level === "Beginner" ? "text-blue-500" :
-            item.level === "Intermediate" ? "text-[brown]" :
-            item.level === "Expert" ? "text-black" : ""
-          }`}
-        >
-          Answer: {item.answer}
-        </div>
-      )}
-    </div>
-  ))}
-
-
-    {showInstructions && INSTRUCTIONS.getContent()}
-  </div>
-
-  {/* Fixed Footer (Prompt Section) */}
-  <div className="bg-white p-3 border-t shadow-md sticky bottom-0 z-10">
-    {submissionId && (
-      <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
     )}
   </div>
+))}
+
+                          
+            {showInstructions && INSTRUCTIONS.getContent()}
+          </>
+
+        ) : (
+          
+          <div>
+           
+            
+           {hasQuestions() && (
+  <div className="mb-6 space-y-6">
+    {/* Candidate CV Score and Matching Areas */}
+    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
+      <h3 className="text-2xl font-semibold text-gray-900 flex items-center mb-4">
+        JD Required Skills vs Candidate's Relevant Experience
+      </h3>
+
+      {/* Candidate CV Score */}
+      <div className="flex items-center space-x-4 mt-4">
+        <h2 className="text-lg font-bold text-gray-800">Candidate CV Score:</h2>
+        <span className="px-4 py-2 bg-blue-600 text-white text-2xl font-bold rounded-lg shadow-md">
+          {matchingScore}/10
+        </span>
+      </div>
+
+      {/* Matching Areas */}
+      <div className="bg-gray-100 p-4 mt-5 rounded-2xl text-black text-lg leading-relaxed whitespace-pre-line shadow-inner">
+        {matchingTextRightPanel || "No matching areas found"}
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+          </div>
+        )}
+      </div>
+  {/* Fixed Footer (Prompt Section) */}
+  <div className="bg-white p-3 border-t shadow-md sticky bottom-0 z-10">
+  {submissionId && (
+    <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
+  )}
+</div>
 
 </div>
 

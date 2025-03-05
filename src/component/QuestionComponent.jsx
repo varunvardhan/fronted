@@ -75,7 +75,7 @@ const QuestionComponent = ({ submissionId, onAddQuestion }) => {
       {/* Input field */}
       <input
         className="flex-1 p-2 border border-gray-800 rounded-lg"
-        placeholder="Type a question..."
+        placeholder="Type your question here and click diffculty level buttons..."
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         disabled={loading} // Disable input when loading
@@ -83,25 +83,35 @@ const QuestionComponent = ({ submissionId, onAddQuestion }) => {
 
       {/* Level buttons (B, I, E) */}
       <button
-        className="ml-2 bg-red-200 border border-gray-600 text-blue-500 p-2 rounded-lg disabled:opacity-50"
+        className="relative group ml-2 bg-gray-200 border border-gray-600 text-green-500 p-2 rounded-lg disabled:opacity-50"
         onClick={() => handleLevelClick("B")}
         disabled={loading} // Disable button when loading
       >
         B
+         {/* Tooltip */}
+    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max bg-gray-900 text-white text-xs px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg">
+    Beginner Level Question
+    </span>
       </button>
       <button
-        className="ml-2 bg-red-200 border border-gray-600 text-[brown] p-2 rounded-lg disabled:opacity-50"
+        className="relative group ml-2 bg-gray-200 border border-gray-600 text-blue-500 p-2 rounded-lg disabled:opacity-50"
         onClick={() => handleLevelClick("I")}
         disabled={loading} // Disable button when loading
       >
         I
+        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max bg-gray-900 text-white text-xs px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg">
+    Intermiate Level Question
+    </span>
       </button>
       <button
-        className="ml-2 bg-red-200 border border-gray-600 text-black p-2 rounded-lg disabled:opacity-50"
+        className="relative group ml-2 bg-gray-200 border border-gray-600 text-[brown] p-2 rounded-lg disabled:opacity-50"
         onClick={() => handleLevelClick("E")}
         disabled={loading} // Disable button when loading
       >
         E
+        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max bg-gray-900 text-white text-xs px-3 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 shadow-lg">
+    Expert Level Question
+    </span>
       </button>
     </div>
   );

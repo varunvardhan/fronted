@@ -22,6 +22,8 @@ const Dashboard = () => {
   const [beginnerQuestions, setBeginnerQuestions] = useState([]);
   const [intermediateQuestions, setIntermediateQuestions] = useState([]);
   const [expertQuestions, setExpertQuestions] = useState([]);
+  const [allEntries, setAllEntries] = useState([]); // Store both prompts and questions
+
 
   const [jobDescription, setJobDescription] = useState("");
   const [notes, setNotes] = useState("");
@@ -31,6 +33,7 @@ const Dashboard = () => {
   const [activeSection, setActiveSection] = useState(null);
   const [showInstructions, setShowInstructions] = useState(true);
   const [submissionId, setSubmissionId] = useState(null);
+  
 
   // Helper to check if any question categories have items
   const hasQuestions = () => {
@@ -68,7 +71,11 @@ const Dashboard = () => {
       if (result.success && result.data && result.data.analysis) {
         const analysis = result.data.analysis;
 
-        setMatchingText(analysis.matching_areas?.join(", ") || "No matching areas found");
+        setMatchingText(
+          analysis.matching_areas?.map(area => `${area.skill}`).join(", ") || 
+          "No matching areas found"
+        );
+        
         setMissingText(analysis.missing_areas?.join(", ") || "No missing areas found");
         setAdditionalText(analysis.additional_areas?.join(", ") || "No additional areas found");
 
@@ -95,50 +102,59 @@ const Dashboard = () => {
 
   // Function to add a question to the appropriate category
   const onAddQuestion = (question, level, answer) => {
-    const newQuestion = { question, answer };
+    const newEntry = { question, answer, level };
 
-    switch (level) {
-      case "Beginner":
-        setBeginnerQuestions((prev) => [...prev, newQuestion]);
-        break;
-      case "Intermediate":
-        setIntermediateQuestions((prev) => [...prev, newQuestion]);
-        break;
-      case "Expert":
-        setExpertQuestions((prev) => [...prev, newQuestion]);
-        break;
-      default:
-        break;
-    }
-  };
+    setAllEntries((prev) => {
+        let updatedEntries = [...prev];
+
+        // Find the last prompt index
+        let lastPromptIndex = updatedEntries.map((e) => e.level).lastIndexOf("Prompt");
+
+        if (level === "Prompt") {
+            // Add new prompt at the end
+            updatedEntries.push(newEntry);
+        } else {
+            // Insert new questions after the last prompt
+            if (lastPromptIndex !== -1) {
+                updatedEntries.splice(lastPromptIndex + 1, 0, newEntry);
+            } else {
+                updatedEntries.push(newEntry); // If no prompt, append normally
+            }
+        }
+        return updatedEntries;
+    });
+};
+
 
   return (
   <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-2">
   {/* Left Panel (Fixed Height with Scrollable Content) */}
   <div
-    className="w-full md:w-1/3 bg-white md:p-6 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto"
+    className="w-full md:w-1/3 bg-white md:p-2 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto"
   >
-    <div className="flex justify-between items-center mt-4 mb-4">
-      <h2 className="text-lg font-bold text-gray-700">Job Description</h2>
+    <div className="border border-gray-200 rounded-lg p-2 shadow-md">
+
+    <div className="flex justify-between items-center mt-4 mb-2">
+      <h2 className="text-lg font-bold text-gray-700">Job Description :</h2>
     </div>
 
     <textarea
-      className="w-full p-1 h-40 border rounded-lg mb-2 focus:ring focus:ring-blue-300"
+      className="w-full h-40 border rounded-lg mb-2 flex flex-col min-h-[80px]"
       placeholder="Type or paste the job description here...."
       value={jobDescription}
       onChange={(e) => setJobDescription(e.target.value)}
     />
 
-    <h2 className="text-lg font-bold mb-2 text-gray-700">Attach Resume</h2>
+    <h2 className="text-lg font-bold mb-2 text-gray-700">Attach Resume:</h2>
     <input
       type="file"
-      className="w-full bg-blue-400 text-white pl-1 py-1 rounded-lg cursor-pointer mb-2"
+      className="w-full bg-blue-500 text-white rounded-lg cursor-pointer mb-2"
       onChange={handleUpload}
     />
 
-    <h2 className="text-lg font-bold mb-2 text-gray-700">Additional Notes</h2>
+    <h2 className="text-lg font-bold mb-1 text-gray-700">Additional Notes</h2>
     <textarea
-      className="w-full p-1 h-40 border rounded-lg mb-4 focus:ring focus:ring-blue-300"
+      className="w-full p-1 h-40 border rounded-lg mb-4 flex flex-col min-h-[80px] "
       placeholder="Type or paste additional notes here...."
       value={notes}
       onChange={(e) => setNotes(e.target.value)}
@@ -160,7 +176,7 @@ const Dashboard = () => {
     )}
 
     {responseMessage && (
-      <div className="mt-1 p-1 bg-gray-200 rounded-lg mb-4 text-center">
+      <div className=" p-1 bg-gray-200 rounded-lg mb-1 text-center">
         {responseMessage}
       </div>
     )}
@@ -172,6 +188,8 @@ const Dashboard = () => {
     >
       {loading ? "Analyzing..." : "Analyze"}
     </button>
+
+  </div>
 
     {/* Scrollable Questions Section */}
     {hasQuestions() &&
@@ -236,13 +254,46 @@ const Dashboard = () => {
       </div>
     ))}
 
-    {/* Display Expert Questions */}
-    {expertQuestions.map((item, index) => (
+     {/* Display Expert Questions */}
+     {expertQuestions.map((item, index) => (
       <div key={`expert-${index}`} className="mb-4">
         <div className="text-black italic font-medium">EQ : {item.question}</div>
         <div className="text-black font-medium">Answer: {item.answer}</div>
       </div>
     ))}
+
+    {allEntries.map((item, index) => (
+    <div key={`entry-${index}`} className="mb-4">
+      <div
+        className={`italic font-medium ${
+          item.level === "Beginner" ? "text-blue-500" :
+          item.level === "Intermediate" ? "text-[brown]" :
+          item.level === "Expert" ? "text-black" :
+          item.level === "Prompt" ? "text-gray-600" : ""
+        }`}
+      >
+        {item.level === "Beginner" ? "BQ" :
+         item.level === "Intermediate" ? "IQ" :
+         item.level === "Expert" ? "EQ" :
+         item.level === "Prompt" ? "Prompt" : ""} 
+        : {item.question}
+      </div>
+
+      {/* Show answer only for non-prompt questions */}
+      {item.level !== "Prompt" && (
+        <div
+          className={`font-medium ${
+            item.level === "Beginner" ? "text-blue-500" :
+            item.level === "Intermediate" ? "text-[brown]" :
+            item.level === "Expert" ? "text-black" : ""
+          }`}
+        >
+          Answer: {item.answer}
+        </div>
+      )}
+    </div>
+  ))}
+
 
     {showInstructions && INSTRUCTIONS.getContent()}
   </div>
