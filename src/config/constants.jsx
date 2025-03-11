@@ -4,7 +4,8 @@ export const ROLE_GUEST = "ROLE_GUEST";
 export const INSTRUCTIONS = {
   showInstructions: false,
   getContent: () => (
-    <div className="w-full bg-white mt-6 p-6 rounded-2xl border border-gray-300 shadow-md max-w-2xl mx-auto">
+    <div className="w-800 bg-white mt-6 p-6 rounded-2xl border border-gray-300 shadow-md max-w-5xl mx-auto">
+
       {/* Section: How It Works */}
       <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
         <span>🔹</span> How It Works
@@ -36,21 +37,28 @@ export const INSTRUCTIONS = {
         </h2>
 
         <ul className="mt-4 space-y-3 text-gray-700 text-base">
-          <li className="flex items-start gap-2">
-            <span className="font-semibold text-blue-600">BQ (Beginner Level Question):</span>
-            <span>Basic questions that test fundamental understanding and recall of concepts.</span>
-          </li>
+  <li className="flex justify-between items-start gap-2 w-full">
+    <span className="font-semibold text-green-900">BQ (Beginner Level Question):</span>
+    <span className="text-justify flex-1">
+      Basic questions that test fundamental understanding and recall of concepts.
+    </span>
+  </li>
 
-          <li className="flex items-start gap-2">
-            <span className="font-semibold text-[brown]">IQ (Intermediate Level Question):</span>
-            <span>Detailed questions that require analysis and application of knowledge.</span>
-          </li>
+  <li className="flex justify-between items-start gap-2 w-full">
+    <span className="font-semibold text-blue-900">IQ (Intermediate Level Question):</span>
+    <span className="text-justify flex-1">
+      Detailed questions that require analysis and application of knowledge.
+    </span>
+  </li>
 
-          <li className="flex items-start gap-2">
-            <span className="font-semibold text-black-600">EQ (Expert Level Question):</span>
-            <span>Advanced questions that involve critical thinking, problem-solving, and real-world scenarios.</span>
-          </li>
-        </ul>
+  <li className="flex justify-between items-start gap-2 w-full">
+    <span className="font-semibold text-[brown]">EQ (Expert Level Question):</span>
+    <span className="text-justify flex-1">
+      Advanced questions that involve critical thinking, problem-solving, and real-world scenarios.
+    </span>
+  </li>
+</ul>
+
       </div>
     </div>
   ),

@@ -16,6 +16,7 @@ const Dashboard = () => {
 
   const [matchingText, setMatchingText] = useState("");
   const [matchingTextRightPanel, setMatchingTextRightPanel] = useState("");
+  const [detailedComparison, setDetailedComparison] = useState([]);
   const [missingText, setMissingText] = useState("");
   const [additionalText, setAdditionalText] = useState("");
  
@@ -35,6 +36,9 @@ const Dashboard = () => {
   const [showInstructions, setShowInstructions] = useState(true);
   const [submissionId, setSubmissionId] = useState(null);
   const [matchingScore, setMatchingScore] = useState(null);
+  const [showScore, setShowScore] = useState(false);
+ 
+  
 
   const [activeTab, setActiveTab] = useState("QA");
   
@@ -85,6 +89,18 @@ const Dashboard = () => {
             ?.map(area => `${area.skill} (${area.years_of_experience || "N/A"})`)
             .join("\n") || "No matching areas found"
         );
+
+       
+
+        setDetailedComparison(
+          Array.isArray(analysis.detailed_comparison) 
+            ? analysis.detailed_comparison.map(area => ({
+                requirement: area.requirement,
+                candidate_experience: area.candidate_experience || "N/A"
+              })) 
+            : []
+        );
+        
         
         
         
@@ -102,6 +118,7 @@ const Dashboard = () => {
         setMatchingScore(result.data.analysis.matching_score);
 
         setShowInstructions(false);
+        setShowScore(true); // Show score after successful analysis
         setResponseMessage("Analysis completed successfully!");
       } else {
         setResponseMessage(`Error: Analysis data is missing.`);
@@ -141,7 +158,7 @@ const Dashboard = () => {
 
 
   return (
-  <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-2">
+  <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-1">
   {/* Left Panel (Fixed Height with Scrollable Content) */}
   <div
     className="w-full md:w-1/3 bg-white md:p-2 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto"
@@ -195,21 +212,36 @@ const Dashboard = () => {
       </div>
     )}
 
-<div className="relative group inline-block">
-  <button
-    className="bg-red-500 w-[100px] text-white mt-2 px-3 py-1 mb-2 rounded-md text-sm shadow-sm hover:bg-red-600"
-    onClick={handleAnalyze}
-    disabled={loading}
-  >
-    {loading ? "Analyzing..." : "Analyze"}
-  </button>
+<div className="flex justify-between items-center mt-4">
+    {/* Analyze Button with Tooltip */}
+    <div className="relative group inline-block">
+      <button
+        className="bg-red-600 w-[120px] h-[36px] text-white px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:bg-red-700 flex items-center justify-center"
+        onClick={handleAnalyze}
+        disabled={loading}
+      >
+        {loading ? "Analyzing..." : "Analyze"}
+      </button>
 
-{/* Tooltip with Overflow Protection */}
-<div className="absolute left-auto sm:left-full top-1/2 sm:top-1/2 mt-1 sm:mt-0 -translate-y-1/2 sm:translate-x-2 bg-gray-900 text-white text-sm px-4 py-3 rounded-md opacity-0 group-hover:opacity-100 transition duration-200 shadow-md w-[300px] sm:w-[500px] h-auto max-w-[500px] break-words text-left">
-  Generate questions across beginner, intermediate, and expert levels to help assess all candidate skills.
-</div>
+      {/* Tooltip with Overflow Protection */}
+      <div className="absolute left-auto sm:left-full top-1/2 sm:top-1/2 mt-1 sm:mt-0 -translate-y-1/2 sm:translate-x-2 bg-gray-900 text-white text-sm px-4 py-3 rounded-md opacity-0 group-hover:opacity-100 transition duration-200 shadow-md w-[300px] sm:w-[500px] h-auto max-w-[500px] break-words text-left">
+        Generate questions across beginner, intermediate, and expert levels to help assess all candidate skills.
+      </div>
+    </div>
 
-</div>
+    {/* Candidate CV Score (Hidden Initially) */}
+    {showScore && (
+      <div className="flex items-center space-x-4">
+        <h2 className="text-lg font-bold text-gray-800">CV Score:</h2>
+        <span className="w-[120px] h-[36px] flex items-center justify-center bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md">
+          {matchingScore}/10
+        </span>
+      </div>
+    )}
+  </div>
+
+
+
 
   </div>
 
@@ -267,31 +299,41 @@ const Dashboard = () => {
   </div>
 
   {/* Tab Navigation */}
-  <div className="flex border-b">
-        <button
-          className={`flex-1 p-2 text-center ${activeTab === "QA" ? "font-bold border-b-2 border-blue-500" : "text-gray-500"}`}
-          onClick={() => setActiveTab("QA")}
-        >
-          Q&A
-        </button>
-        <button
-          className={`flex-1 p-2 text-center ${activeTab === "Matching Details" ? "font-bold border-b-2 border-blue-500" : "text-gray-500"}`}
-          onClick={() => setActiveTab("Matching Details")}
-        >
-          JD vs. Candidate Fit Summary
-        </button>
-      </div>
+  <div className="flex space-x-1 border-b bg-gray-100 rounded-t-lg shadow-md px-1">
+  <button
+    className={`px-4 py-2 text-sm rounded-t-md transition-all duration-200 ${
+      activeTab === "QA"
+        ? "bg-white font-bold border-t-2 border-x-2 border-blue-500 shadow-sm"
+        : "text-gray-600 bg-gray-200 hover:bg-gray-300"
+    }`}
+    onClick={() => setActiveTab("QA")}
+  >
+    Q&A
+  </button>
+
+  <button
+    className={`px-4 py-2 text-sm rounded-t-md transition-all duration-200 ${
+      activeTab === "Matching Details"
+        ? "bg-white font-bold border-t-2 border-x-2 border-blue-500 shadow-sm"
+        : "text-gray-600 bg-gray-200 hover:bg-gray-300"
+    }`}
+    onClick={() => setActiveTab("Matching Details")}
+  >
+    JD vs. Candidate Fit Summary
+  </button>
+</div>
+
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 ">
         {activeTab === "QA" ? (
           <>
             {beginnerQuestions.map((item, index) => (
-              <div key={`beginner-${index}`} className="mb-4">
-              <div className="text-green-950 font-semibold italic text-lg leading-relaxed bg-green-100 p-2 rounded-lg">
+              <div key={`beginner-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
+              <div className="text-green-950 font-semibold italic text-lg leading-relaxed p-2 rounded-lg">
   BQ: {item.question}
 </div>
-<div className="text-green-950 font-semibold text-lg leading-relaxed bg-green-50 p-2 rounded-lg mb-2">
+<div className="text-green-950 font-semibold text-lg leading-relaxed p-2 rounded-lg mb-1">
   Answer: {item.answer}
 </div>
 
@@ -299,11 +341,11 @@ const Dashboard = () => {
             ))}
 
             {intermediateQuestions.map((item, index) => (
-              <div key={`intermediate-${index}`} className="mb-4">
-               <div className="text-blue-900 italic font-medium text-lg leading-relaxed bg-blue-100 p-3 rounded-lg">
+              <div key={`intermediate-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
+               <div className="text-blue-900 italic font-medium text-lg leading-relaxed p-3 rounded-lg">
   IQ: {item.question}
 </div>
-<div className="text-blue-900 font-medium text-lg leading-relaxed bg-blue-50 p-3 rounded-lg mb-2">
+<div className="text-blue-900 font-medium text-lg leading-relaxed p-2 rounded-lg mb-1">
   Answer: {item.answer}
 </div>
 
@@ -311,11 +353,11 @@ const Dashboard = () => {
             ))}
 
             {expertQuestions.map((item, index) => (
-              <div key={`expert-${index}`} className="mb-4">
-               <div className="text-[#5A3E1B] italic font-medium text-lg leading-relaxed bg-orange-100 p-3 rounded-lg">
+              <div key={`expert-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
+               <div className="text-[#5A3E1B] italic font-medium text-lg leading-relaxed p-3 rounded-lg">
   EQ: {item.question}
 </div>
-<div className="text-[#5A3E1B] font-medium text-lg leading-relaxed bg-orange-50 p-3 rounded-lg mb-2">
+<div className="text-[#5A3E1B] font-medium text-lg leading-relaxed p-2 rounded-lg mb-2">
   Answer: {item.answer}
 </div>
 
@@ -324,13 +366,13 @@ const Dashboard = () => {
             ))}
 
 {allEntries.map((item, index) => (
-  <div key={`entry-${index}`} className="mb-4 p-4 rounded-lg shadow-md">
+  <div key={`entry-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
     <div
       className={`italic font-medium text-lg ${
-        item.level === "Beginner" ? "text-green-900 bg-green-100 p-3 rounded-md" :
-        item.level === "Intermediate" ? "text-blue-800 bg-blue-100 p-3 rounded-md" :
-        item.level === "Expert" ? "text-[#8B4513] bg-orange-100 p-3 rounded-md" :
-        item.level === "Prompt" ? "text-black bg-gray-100 p-3 rounded-md" : ""
+        item.level === "Beginner" ? "text-green-900 p-3 rounded-md" :
+        item.level === "Intermediate" ? "text-blue-800 p-3 rounded-md" :
+        item.level === "Expert" ? "text-[#8B4513] p-3 rounded-md" :
+        item.level === "Prompt" ? "text-black p-3 rounded-md" : ""
       }`}
     >
       {item.level === "Beginner" ? "BQ" :
@@ -343,9 +385,9 @@ const Dashboard = () => {
     {item.level !== "Prompt" && (
       <div
         className={`font-medium text-lg ${
-          item.level === "Beginner" ? "text-green-900 bg-green-50 p-3 rounded-md" :
-          item.level === "Intermediate" ? "text-blue-800 bg-blue-50 p-3 rounded-md" :
-          item.level === "Expert" ? "text-[#8B4513] bg-orange-50 p-3 rounded-md" : ""
+          item.level === "Beginner" ? "text-green-900  p-3 rounded-md" :
+          item.level === "Intermediate" ? "text-blue-800  p-3 rounded-md" :
+          item.level === "Expert" ? "text-[#8B4513] p-3 rounded-md" : ""
         }`}
       >
         Answer: {item.answer}
@@ -371,18 +413,20 @@ const Dashboard = () => {
         JD Required Skills vs Candidate's Relevant Experience
       </h3>
 
-      {/* Candidate CV Score */}
-      <div className="flex items-center space-x-4 mt-4">
-        <h2 className="text-lg font-bold text-gray-800">Candidate CV Score:</h2>
-        <span className="px-4 py-2 bg-blue-600 text-white text-2xl font-bold rounded-lg shadow-md">
-          {matchingScore}/10
-        </span>
-      </div>
 
-      {/* Matching Areas */}
-      <div className="bg-gray-100 p-4 mt-5 rounded-2xl text-black text-lg leading-relaxed whitespace-pre-line shadow-inner">
-        {matchingTextRightPanel || "No matching areas found"}
+     {/* Comparison Section */}
+     <div className="bg-gray-100 p-4 mt-5 rounded-2xl text-black text-lg leading-relaxed whitespace-pre-line shadow-inner">
+  {detailedComparison.length > 0 ? (
+    detailedComparison.map((item, index) => (
+      <div key={index} className="mb-2">
+        <strong>{item.requirement}</strong> - {item.candidate_experience}
       </div>
+    ))
+  ) : (
+    <p>No matching areas found</p>
+  )}
+</div>
+
     </div>
   </div>
 )}
@@ -393,11 +437,13 @@ const Dashboard = () => {
         )}
       </div>
   {/* Fixed Footer (Prompt Section) */}
+  {activeTab === "QA" && (
   <div className="bg-white p-3 border-t shadow-md sticky bottom-0 z-10">
-  {submissionId && (
-    <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
-  )}
-</div>
+    {submissionId && (
+      <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
+    )}
+  </div>
+)}
 
 </div>
 
