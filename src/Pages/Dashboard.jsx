@@ -370,11 +370,11 @@ const Dashboard = () => {
           {activeTab === "QA" ? (
             <>
               {beginnerQuestions.map((item, index) => (
-                <div key={`beginner-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
-                  <div className="text-green-950 font-semibold italic text-lg leading-relaxed p-2 rounded-lg">
+                <div key={`beginner-${index}`} className="rounded-lg">
+                  <div className="text-green-950 font-semibold italic text-lg leading-relaxed rounded-lg">
                     BQ: {item.question}
                   </div>
-                  <div className="text-green-950 font-semibold text-lg leading-relaxed p-2 rounded-lg mb-1">
+                  <div className="text-green-950 font-semibold text-lg leading-relaxed rounded-lg mb-1">
                     Answer: {item.answer}
                   </div>
 
@@ -382,11 +382,11 @@ const Dashboard = () => {
               ))}
 
               {intermediateQuestions.map((item, index) => (
-                <div key={`intermediate-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
-                  <div className="text-blue-900 italic font-medium text-lg leading-relaxed p-3 rounded-lg">
+                <div key={`intermediate-${index}`} className="rounded-lg">
+                  <div className="text-blue-900 italic font-medium text-lg leading-relaxed rounded-lg">
                     IQ: {item.question}
                   </div>
-                  <div className="text-blue-900 font-medium text-lg leading-relaxed p-2 rounded-lg mb-1">
+                  <div className="text-blue-900 font-medium text-lg leading-relaxed rounded-lg mb-1">
                     Answer: {item.answer}
                   </div>
 
@@ -394,11 +394,11 @@ const Dashboard = () => {
               ))}
 
               {expertQuestions.map((item, index) => (
-                <div key={`expert-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
-                  <div className="text-[#5A3E1B] italic font-medium text-lg leading-relaxed p-3 rounded-lg">
+                <div key={`expert-${index}`} className="rounded-lg">
+                  <div className="text-[#5A3E1B] italic font-medium text-lg leading-relaxed rounded-lg">
                     EQ: {item.question}
                   </div>
-                  <div className="text-[#5A3E1B] font-medium text-lg leading-relaxed p-2 rounded-lg mb-2">
+                  <div className="text-[#5A3E1B] font-medium text-lg leading-relaxed rounded-lg mb-1">
                     Answer: {item.answer}
                   </div>
 
@@ -407,12 +407,12 @@ const Dashboard = () => {
               ))}
 
               {allEntries.map((item, index) => (
-                <div key={`entry-${index}`} className="mb-2 p-4 rounded-lg shadow-md">
+                <div key={`entry-${index}`} className="rounded-lg">
                   <div
-                    className={`italic font-medium text-lg ${item.level === "Beginner" ? "text-green-900 p-3 rounded-md" :
-                        item.level === "Intermediate" ? "text-blue-800 p-3 rounded-md" :
-                          item.level === "Expert" ? "text-[#8B4513] p-3 rounded-md" :
-                            item.level === "Prompt" ? "text-black p-3 rounded-md" : ""
+                    className={`italic font-medium text-lg ${item.level === "Beginner" ? "text-green-950 rounded-md" :
+                        item.level === "Intermediate" ? "text-blue-950 rounded-md" :
+                          item.level === "Expert" ? "text-[#8B4513] rounded-md" :
+                            item.level === "Prompt" ? "text-black mb-3 mt-3 rounded-md" : ""
                       }`}
                   >
                     {item.level === "Beginner" ? "BQ" :
@@ -424,9 +424,9 @@ const Dashboard = () => {
 
                   {item.level !== "Prompt" && (
                     <div
-                      className={`font-medium text-lg ${item.level === "Beginner" ? "text-green-900  p-3 rounded-md" :
-                          item.level === "Intermediate" ? "text-blue-800  p-3 rounded-md" :
-                            item.level === "Expert" ? "text-[#8B4513] p-3 rounded-md" : ""
+                      className={`font-medium text-lg ${item.level === "Beginner" ? "text-green-950 rounded-md mb-1 " :
+                          item.level === "Intermediate" ? "text-blue-950  rounded-md mb-1" :
+                            item.level === "Expert" ? "text-[#8B4513] rounded-md mb-1" : ""
                         }`}
                     >
                       Answer: {item.answer}
