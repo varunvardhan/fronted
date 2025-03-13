@@ -45,14 +45,22 @@ const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("QA");
 
   const validateForm = () => {
-    const newErrors = {};
-    if (!jobDescription.trim()) newErrors.jobDescription = "Job description is required.";
-    if (!resume) newErrors.resume = "Resume is required.";
-    if (!notes.trim()) newErrors.notes = "Additional notes are required.";
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    if (!jobDescription.trim()) {
+      alert("Job description is required.");
+      return false;
+    }
+    if (!resume) {
+      alert("Resume is required.");
+      return false;
+    }
+    if (!notes.trim()) {
+      alert("Additional notes are required.");
+      return false;
+    }
+  
+    return true; // Return true if no errors
   };
+  
   useEffect(() => {
     if (responseMessage) {
       toast.success(responseMessage, {
@@ -87,13 +95,17 @@ const Dashboard = () => {
     const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]; // PDF and DOCX MIME types
   
     if (file && !allowedTypes.includes(file.type)) {
+      alert("Only PDF and DOCX files are allowed."); // Alert for invalid file
       setErrors((prev) => ({ ...prev, resume: "Only PDF and DOCX files are allowed." }));
       setResume(null);
     } else {
       setErrors((prev) => ({ ...prev, resume: "" })); // Clear error message
       setResume(file);
+      alert("File uploaded successfully!"); // Confirmation alert for valid file
     }
   };
+  
+  
 
   const handleLogout = () => {
     removeUserData();
