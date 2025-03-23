@@ -47,8 +47,6 @@ const Dashboard = () => {
   const [isFetchingAnalysis, setIsFetchingAnalysis] = useState(false);
 
   const [activeTab, setActiveTab] = useState("QA");
-  // Add currentCandidateId state
-  const [currentCandidateId, setCurrentCandidateId] = useState(null);
 
   const validateForm = () => {
     if (!jobDescription.trim()) {
@@ -140,9 +138,7 @@ const Dashboard = () => {
             fileName: entry.resume_file,
             submissionId: entry.submission_id,
             name: parsedAnalysis.Name || "Unknown",
-            matching_score: parsedAnalysis.matching_score || 0,
-            promptQuestions: [], // Initialize prompt questions for each candidate
-
+            matching_score: parsedAnalysis.matching_score || 0
           };
         });
 
@@ -188,12 +184,14 @@ const Dashboard = () => {
 
   const handleCandidateClick = async (candidate) => {
     setIsFetchingAnalysis(true); // Hide progress bar
-    setCurrentCandidateId(candidate.submissionId); // Set the current candidate ID
     try {
-      const result = await fetchCandidateAnalysis(candidate.submissionId);
+      const result = await fetchCandidateAnalysis(candidate.submissionId); // Fetch analysis for the clicked candidate
   
       if (result.success) {
         setSelectedCandidateAnalysis(result.data.ai_analysis); // Store the analysis in state
+
+         // Update the selected candidate's analysis
+        setSelectedCandidateAnalysis(result.data.ai_analysis);
 
          // Update the matching score and text in the middle component
         setMatchingScore(candidate.matching_score); // Update matching score
@@ -255,20 +253,7 @@ const Dashboard = () => {
       }
       return updatedEntries;
     });
-        // Add prompt question to the selected candidate's promptQuestions array
-        if (level === "Prompt" && currentCandidateId) {
-          setAllResumeResults((prevResults) =>
-            prevResults.map((candidate) =>
-              candidate.submissionId === currentCandidateId
-                ? { ...candidate, promptQuestions: [...candidate.promptQuestions, newEntry] }
-                : candidate
-            )
-          );
-        }
-
-        
-};
-
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-1">
@@ -493,7 +478,7 @@ const Dashboard = () => {
               {hasQuestions() && (
                 <div className="mb-6 space-y-6">
                   <div className="bg-white border border-gray-500 rounded-2xl p-6 shadow-lg">
-                    <h3 className="text-2xl font-semibold text--500 flex items-center mb-4">
+                    <h3 className="text-2xl font-semibold text-gray-500 flex items-center mb-4">
                       JD Required Skills vs Candidate's Relevant Experience
                     </h3>
 
@@ -517,13 +502,11 @@ const Dashboard = () => {
         </div>
 
         {activeTab === "QA" && (
-         <div className="bg-white p-3 border-t shadow-md sticky bottom-0 z-10">
-         {submissionId && (
-           (candidate) => candidate.submissionId === submissionId 
-         ) && (
-           <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
-         )}
-       </div>
+          <div className="bg-white p-3 border-t shadow-md sticky bottom-0 z-10">
+            {submissionId && (
+              <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
+            )}
+          </div>
         )}
       </div>
 

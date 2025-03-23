@@ -17,3 +17,9 @@ export const askAI = async (question, submissionId) => {
         };
     }
 };
+
+
+export const getScreeningAnalysis = async (submissionId) => {
+  const url = `/auth/screening-analysis/${submissionId}/`;
+  return await axios.get(url);
+};
