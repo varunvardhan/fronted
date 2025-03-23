@@ -129,20 +129,19 @@ const Dashboard = () => {
       if (result.success && Array.isArray(result.data?.results)) {
         const parsedResults = result.data.results.map((entry) => {
           let parsedAnalysis = {};
-
+        
           try {
             parsedAnalysis = JSON.parse(entry.detailed_analysis || "{}");
           } catch (error) {
             console.error(`Failed to parse analysis for ${entry.resume_file}`, error);
           }
-
+        
           return {
             fileName: entry.resume_file,
             submissionId: entry.submission_id,
             name: parsedAnalysis.Name || "Unknown",
             matching_score: parsedAnalysis.matching_score || 0,
-            promptQuestions: [], // Initialize prompt questions for each candidate
-
+            promptQuestions: [], // Initialize with empty array
           };
         });
 
@@ -187,87 +186,69 @@ const Dashboard = () => {
   };
 
   const handleCandidateClick = async (candidate) => {
-    setIsFetchingAnalysis(true); // Hide progress bar
-    setCurrentCandidateId(candidate.submissionId); // Set the current candidate ID
+    setIsFetchingAnalysis(true);
+    setCurrentCandidateId(candidate.submissionId);
     try {
       const result = await fetchCandidateAnalysis(candidate.submissionId);
-  
+    
       if (result.success) {
-        setSelectedCandidateAnalysis(result.data.ai_analysis); // Store the analysis in state
-
-         // Update the matching score and text in the middle component
-        setMatchingScore(candidate.matching_score); // Update matching score
-        setMatchingText(`Candidate: ${candidate.name}`); // Update candidate name
-        setMatchingTextRightPanel(`Matching Score: ${candidate.matching_score}`); // Update matching score text
-      
+        setSelectedCandidateAnalysis(result.data.ai_analysis);
+        setMatchingScore(candidate.matching_score);
+        setMatchingText(`Candidate: ${candidate.name}`);
+        setMatchingTextRightPanel(`Matching Score: ${candidate.matching_score}`);
+        
         // Extract and update detailed comparison data
         const { detailed_comparison } = result.data.ai_analysis;
-
-        // Format the detailed comparison data
         const formattedComparison = detailed_comparison.map((item) => ({
           requirement: item.requirement,
           candidate_experience: item.candidate_experience,
-          evidence: "From resume analysis", // Add evidence or additional details if needed
+          evidence: "From resume analysis",
         }));
-
-        // Update the detailedComparison state
         setDetailedComparison(formattedComparison);
-
+  
         // Set screening questions from the API response
         const { screening_questions } = result.data.ai_analysis;
         setBeginnerQuestions(screening_questions.beginner || []);
         setIntermediateQuestions(screening_questions.intermediate || []);
         setExpertQuestions(screening_questions.expert || []);
+        
+        // Important: Load the candidate's existing prompt questions
+        const candidatePrompts = candidate.promptQuestions || [];
+        setAllEntries(candidatePrompts);
       } else {
-        toast.error(result.message); // Show error message
+        toast.error(result.message);
         if (result.message === "Unauthorized! Please log in again.") {
-        navigate("/login"); // Redirect to login if unauthorized
+          navigate("/login");
+        }
       }
+    } catch (error) {
+      console.error("Error fetching candidate analysis:", error);
+      toast.error("Failed to fetch candidate analysis. Please try again.");
+    } finally {
+      setIsFetchingAnalysis(false);
     }
-  } catch (error) {
-    console.error("Error fetching candidate analysis:", error);
-    toast.error("Failed to fetch candidate analysis. Please try again.");
-  } finally {
-    setIsFetchingAnalysis(false); // Hide progress bar
-  }
-};
-  
+  };
 
   const onAddQuestion = (question, level, answer) => {
     const newEntry = { question, answer, level };
-
-    setAllEntries((prev) => {
-      let updatedEntries = [...prev];
-
-      // Find the last prompt index
-      let lastPromptIndex = updatedEntries.map((e) => e.level).lastIndexOf("Prompt");
-
-      if (level === "Prompt") {
-        // Add new prompt at the end
-        updatedEntries.push(newEntry);
-      } else {
-        // Insert new questions after the last prompt
-        if (lastPromptIndex !== -1) {
-          updatedEntries.splice(lastPromptIndex + 1, 0, newEntry);
-        } else {
-          updatedEntries.push(newEntry); // If no prompt, append normally
-        }
-      }
-      return updatedEntries;
-    });
-        // Add prompt question to the selected candidate's promptQuestions array
-        if (level === "Prompt" && currentCandidateId) {
-          setAllResumeResults((prevResults) =>
-            prevResults.map((candidate) =>
-              candidate.submissionId === currentCandidateId
-                ? { ...candidate, promptQuestions: [...candidate.promptQuestions, newEntry] }
-                : candidate
-            )
-          );
-        }
-
-        
-};
+  
+    // Add to the allEntries state for immediate display
+    setAllEntries((prev) => [...prev, newEntry]);
+  
+    // Store the question with the current candidate
+    if (currentCandidateId) {
+      setAllResumeResults((prevResults) =>
+        prevResults.map((candidate) =>
+          candidate.submissionId === currentCandidateId
+            ? { 
+                ...candidate, 
+                promptQuestions: [...(candidate.promptQuestions || []), newEntry]
+              }
+            : candidate
+        )
+      );
+    }
+  };
 
 
   return (
@@ -457,35 +438,18 @@ const Dashboard = () => {
                 </div>
               ))}
 
-              {allEntries.map((item, index) => (
-                <div key={`entry-${index}`} className="rounded-lg">
-                  <div
-                    className={`italic font-medium text-lg ${item.level === "Beginner" ? "text-green-950 rounded-md" :
-                        item.level === "Intermediate" ? "text-blue-950 rounded-md" :
-                          item.level === "Expert" ? "text-[#8B4513] rounded-md" :
-                            item.level === "Prompt" ? "text-black mb-3 mt-3 rounded-md" : ""
-                      }`}
-                  >
-                    {item.level === "Beginner" ? "BQ" :
-                      item.level === "Intermediate" ? "IQ" :
-                        item.level === "Expert" ? "EQ" :
-                          item.level === "Prompt" ? "Prompt" : ""}
-                    : {item.question}
-                  </div>
-
-                  {item.level !== "Prompt" && (
-                    <div
-                      className={`font-medium text-lg ${item.level === "Beginner" ? "text-green-950 rounded-md mb-1 " :
-                          item.level === "Intermediate" ? "text-blue-950  rounded-md mb-1" :
-                            item.level === "Expert" ? "text-[#8B4513] rounded-md mb-1" : ""
-                        }`}
-                    >
-                      Answer: {item.answer}
-                    </div>
-                  )}
-                </div>
-              ))}
-
+{allEntries.map((item, index) => (
+      <div key={`prompt-${index}`} className="rounded-lg bg-gray-100 p-2 mb-1 shadow-sm">
+        <div className="text-black font-semibold text-lg">
+          Prompt: {item.question}
+        </div>
+        {item.answer && (
+          <div className="text-black font-medium text-lg mt-1">
+            Answer: {item.answer}
+          </div>
+        )}
+      </div>
+    ))}
               {showInstructions && INSTRUCTIONS.getContent()}
             </>
           ) : (
