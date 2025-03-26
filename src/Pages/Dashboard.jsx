@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { LogOut } from "lucide-react";
 import { analyzeResumesBulk } from '/src/config/axios.config.js';
 import { fetchCandidateAnalysis } from '/src/config/axios.config.js';
@@ -45,10 +45,47 @@ const Dashboard = () => {
   const [allResumeResults, setAllResumeResults] = useState([]);
   const [selectedCandidateAnalysis, setSelectedCandidateAnalysis] = useState(null); // State to store the selected candidate's analysis
   const [isFetchingAnalysis, setIsFetchingAnalysis] = useState(false);
+  const [disabledCandidates, setDisabledCandidates] = useState(new Set());
+  const [processedCandidates, setProcessedCandidates] = useState(new Set());
+
 
   const [activeTab, setActiveTab] = useState("QA");
   // Add currentCandidateId state
   const [currentCandidateId, setCurrentCandidateId] = useState(null);
+
+  //auto scroll
+  const candidatesListRef = useRef(null);
+  const middlePanelRef = useRef(null);
+  const questionInputRef = useRef(null);
+  
+  // Auto-scroll to bottom when questions are added
+  useEffect(() => {
+    if (middlePanelRef.current && (beginnerQuestions.length > 0 || intermediateQuestions.length > 0 || expertQuestions.length > 0 || allEntries.length > 0)) {
+      middlePanelRef.current.scrollTop = middlePanelRef.current.scrollHeight;
+    }
+  }, [beginnerQuestions, intermediateQuestions, expertQuestions, allEntries]);
+
+
+
+  // Auto-scroll to top of candidates list when analysis completes
+  useEffect(() => {
+    if (allResumeResults.length > 0 && candidatesListRef.current) {
+      candidatesListRef.current.scrollTop = 0;
+    }
+  }, [allResumeResults]);
+
+  // Auto-scroll to selected candidate
+  const scrollToCandidate = (element) => {
+    if (candidatesListRef.current && element) {
+      const container = candidatesListRef.current;
+      const elementTop = element.offsetTop;
+      const elementHeight = element.offsetHeight;
+      const containerHeight = container.offsetHeight;
+      
+      container.scrollTop = elementTop - (containerHeight / 2) + (elementHeight / 2);
+    }
+  };
+
 
   const validateForm = () => {
     if (!jobDescription.trim()) {
@@ -117,6 +154,21 @@ const Dashboard = () => {
   const handleAnalyze = async () => {
     setLoading(true);
     setResponseMessage("");
+    setShowMatching(false)
+     // Reset candidate analysis state
+     setSelectedCandidateAnalysis(null); // Clear selected candidate analysis
+     setMatchingScore(0); // Reset matching score
+     setMatchingText(""); // Clear matching text
+     setMatchingTextRightPanel(""); // Clear matching text in the right panel
+     setDetailedComparison([]); // Clear detailed comparison data
+     // Reset screening questions
+     setBeginnerQuestions([]); // Clear beginner questions
+     setIntermediateQuestions([]); // Clear intermediate questions
+     setExpertQuestions([]); // Clear expert questions
+     setAllEntries([]); // This clears all prompt questions
+     setCurrentCandidateId(null); // Reset current candidate ID
+     setProcessedCandidates(new Set()); // Clear processed candidates
+      
 
     if (validateForm()) {
       console.log("Form submitted:", { jobDescription, resume, notes });
@@ -173,6 +225,15 @@ const Dashboard = () => {
         // Store all resume results for listing and sort
         const sortedResults = parsedResults.sort((a, b) => (b.matching_score || 0) - (a.matching_score || 0));
         setAllResumeResults(sortedResults);
+        // Auto-scroll to bottom after state update
+        setTimeout(() => {
+          if (candidatesListRef.current) {
+            candidatesListRef.current.scrollTo({
+              top: candidatesListRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 100); 
       } else {
         console.error("Invalid API response format:", result);
         setResponseMessage("Analysis failed. Invalid response.");
@@ -186,12 +247,14 @@ const Dashboard = () => {
   };
 
   const handleCandidateClick = async (candidate) => {
+    setDisabledCandidates((prev) => new Set(prev).add(candidate.submissionId));
     setIsFetchingAnalysis(true);
     setCurrentCandidateId(candidate.submissionId);
     try {
       const result = await fetchCandidateAnalysis(candidate.submissionId);
     
       if (result.success) {
+        setShowMatching(true)
         setSelectedCandidateAnalysis(result.data.ai_analysis);
         setMatchingScore(candidate.matching_score);
         setMatchingText(`Candidate: ${candidate.name}`);
@@ -215,6 +278,12 @@ const Dashboard = () => {
         // Important: Load the candidate's existing prompt questions
         const candidatePrompts = candidate.promptQuestions || [];
         setAllEntries(candidatePrompts);
+
+        //auto scroll
+        if (questionInputRef.current) {
+          questionInputRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+        
       } else {
         toast.error(result.message);
         if (result.message === "Unauthorized! Please log in again.") {
@@ -226,6 +295,11 @@ const Dashboard = () => {
       toast.error("Failed to fetch candidate analysis. Please try again.");
     } finally {
       setIsFetchingAnalysis(false);
+      setDisabledCandidates((prev) => {
+        const updated = new Set(prev);
+        updated.delete(candidate.submissionId);
+        return updated;
+      });
     }
   };
 
@@ -250,14 +324,20 @@ const Dashboard = () => {
     }
   };
 
+  setTimeout(() => {
+    if (questionInputRef.current) {
+      questionInputRef.current.focus();
+    }
+  }, 100);
+
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-1">
       {/* Left Panel (1 part) */}
-      <div className="w-full md:w-1/5 bg-white md:p-2 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto">
+ <div className="w-full md:w-1/4 bg-white md:p-2 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto" ref={candidatesListRef}>
         <div className="border border-gray-200 rounded-lg p-2 shadow-md">
-        <div className="flex justify-between items-center py-3 px-4 bg-white border-b border-gray-200 rounded-t-lg shadow-sm">
-          <h2 className="text-xl font-semibold text-gray-800">Job Description</h2>
+        <div className="flex justify-between items-center py-3 bg-white border-b border-gray-200 rounded-t-lg shadow-sm">
+          <h2 className="text-lg font-bold text-gray-700">Job Description</h2>
         </div>
 
           <textarea
@@ -327,36 +407,77 @@ const Dashboard = () => {
 
         {allResumeResults.length > 0 && (
           <div className="mt-6">
-          <h2 className="text-lg font-semibold mb-2">All Resume Results:</h2>
-          {allResumeResults.length > 0 ? (
-            <ul className="space-y-2">
-              {allResumeResults.map((result, index) => (
-                <li
-                  key={index}
-                  className="p-3 border rounded-lg shadow-sm bg-gray-100 flex justify-between cursor-pointer hover:bg-gray-200"
-                  onClick={() => handleCandidateClick(result)} // Handle candidate selection
-                  role="button" // Indicates that the list item is clickable
-                  tabIndex={0} // Make the list item focusable
-                  aria-label={`View details for candidate ${result.name}`} // Accessibility label
-                  onKeyPress={(e) => e.key === 'Enter' && handleCandidateClick(result)} // Handle keyboard interaction
-                >
-                  <span>
-                    <strong>{result.name}</strong> ({result.fileName})
-                  </span>
-                  <span>CV Score: {result.matching_score}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-500">No resume results available.</p> // Display a message if no results are found
-          )}
-        </div>
+            <h2 className="text-lg font-semibold mb-2">All Resume Results with CV score:</h2>
+            {allResumeResults.length > 0 ? (
+              <ul className="space-y-2">
+                {allResumeResults.map((result, index) => {
+                  // Determine if candidate was previously processed
+                  const isProcessed = processedCandidates.has(result.submissionId);
+                  const isProcessing = disabledCandidates.has(result.submissionId);
+                  const isCurrent = currentCandidateId === result.submissionId;
+                  
+                  return (
+                    <li
+                      key={index}
+                      className={`p-3 border rounded-lg shadow-sm ${
+                        isProcessing
+                          ? "bg-gray-200 cursor-not-allowed"
+                          : "bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                      } flex justify-between`}
+                      onClick={() => {
+                        if (!isProcessing) {
+                          // Add to processed candidates when clicked
+                          setProcessedCandidates(prev => new Set(prev).add(result.submissionId));
+                          handleCandidateClick(result);
+                        }
+                      }}
+                    >
+                      <div className="space-y-2 w-full">
+                        <div className="flex items-start gap-2">
+                          {/* Score circle and text */}
+                          <div className="flex gap-2 flex-grow">
+                            <span className="bg-blue-600 text-white text-sm font-semibold h-8 w-8 flex items-center justify-center rounded-full shadow-md flex-shrink-0">
+                              {result.matching_score}
+                            </span>
+                            <div className="flex flex-col">
+                              <strong>{result.name}</strong>
+                              <span className="text-sm text-gray-600">({result.fileName})</span>
+                            </div>
+                          </div>
+
+                          {/* Dynamic status indicator */}
+                          <span className={`h-3 w-3 rounded-full mt-2 flex-shrink-0 ${
+                            isProcessing
+                              ? 'bg-red-500 animate-pulse'  // Processing
+                              : isProcessed || isCurrent
+                                ? 'bg-green-500'           // Processed (either previously or current)
+                                : 'bg-red-500'             // Not processed
+                          }`}
+                          title={
+                            isProcessing
+                              ? 'Processing...'
+                              : isProcessed || isCurrent
+                                ? 'Analysis complete'
+                                : 'Click to analyze'
+                          }
+                          ></span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-gray-500">No resume results available.</p>
+            )}
+          </div>
         )}
       </div>
 
       {/* Middle Panel (3 parts) */}
       <div className="w-full md:w-3/5 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]"
         style={{ backgroundImage: "url('/whatsapp-bg.png')", backgroundSize: "cover" }}
+        ref={middlePanelRef} 
       >
         <div className="bg-white text-black p-2 rounded-t-sm flex justify-between items-center border-b shadow-md sticky top-0">
           <span className="font-bold text-xl">BMI CoPanelist Chat</span>
@@ -369,16 +490,16 @@ const Dashboard = () => {
         </div>
 
         <div className="flex space-x-2 bg-white-100 rounded-lg px-3 py-2">
-        {showScore && (
+        {showMatching && (
           <div className="flex items-center space-x-4">
-            <h2 className="text-lg font-bold text-gray-800">{matchingText }CV:</h2>
-            <span className="w-[120px] h-[36px] flex items-center justify-center bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md">
+            <h2 className="text-lg font-bold text-gray-800">{matchingText} : </h2>
+            {/* <span className="w-[120px] h-[36px] flex items-center justify-center bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md">
               {matchingScore}/10
-            </span>
+            </span> */}
           </div>
         )}
 
-          {showScore && (
+          {showMatching && (
             <button
               className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
                 activeTab === "QA"
@@ -389,7 +510,7 @@ const Dashboard = () => {
             >
               Q&A
             </button>)}
-          {showScore && (
+          {showMatching && (
             <button
               className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
                 activeTab === "Matching Details"
@@ -438,7 +559,7 @@ const Dashboard = () => {
                 </div>
               ))}
 
-{allEntries.map((item, index) => (
+{/* {allEntries.map((item, index) => (
       <div key={`prompt-${index}`} className="rounded-lg bg-gray-100 p-2 mb-1 shadow-sm">
         <div className="text-black font-semibold text-lg">
           Prompt: {item.question}
@@ -449,8 +570,77 @@ const Dashboard = () => {
           </div>
         )}
       </div>
-    ))}
+    ))} */}
+   {allEntries.map((item, index) => (
+  <div
+    key={`entry-${index}`}
+    className={`rounded-lg p-2 mb-1 shadow-sm ${
+      item.level === "Beginner"
+        ? "bg-green-50" // Light green for Beginner
+        : item.level === "Intermediate"
+        ? "bg-blue-50" // Light blue for Intermediate
+        : item.level === "Expert"
+        ? "bg-amber-50" // Light amber for Expert
+        : item.level === "Prompt"
+        ? "bg-gray-100" // Light gray for Prompt
+        : ""
+    }`}
+  >
+    {/* Render BQ, IQ, EQ, or Prompt based on the level */}
+    <div
+      className={`italic font-medium text-lg ${
+        item.level === "Beginner"
+          ? "text-green-950 rounded-md"
+          : item.level === "Intermediate"
+          ? "text-blue-950 rounded-md"
+          : item.level === "Expert"
+          ? "text-[#8B4513] rounded-md"
+          : item.level === "Prompt"
+          ? "text-black mb-3 mt-3 rounded-md"
+          : ""
+      }`}
+    >
+      {item.level === "Beginner"
+        ? "BQ"
+        : item.level === "Intermediate"
+        ? "IQ"
+        : item.level === "Expert"
+        ? "EQ"
+        : item.level === "Prompt"
+        ? "Prompt"
+        : ""}
+      : {item.question}
+    </div>
+
+    {/* Render answer for BQ, IQ, and EQ */}
+    {item.level !== "Prompt" && (
+      <div
+        className={`font-medium text-lg ${
+          item.level === "Beginner"
+            ? "text-green-950 rounded-md mb-1"
+            : item.level === "Intermediate"
+            ? "text-blue-950 rounded-md mb-1"
+            : item.level === "Expert"
+            ? "text-[#8B4513] rounded-md mb-1"
+            : ""
+        }`}
+      >
+        Answer: {item.answer}
+      </div>
+    )}
+
+    {/* Render answer for Prompt (if it exists) */}
+    {item.level === "Prompt" && item.answer && (
+      <div className="text-black font-medium text-lg mt-1">
+        Answer: {item.answer}
+      </div>
+    )}
+  </div>
+))}
+             {/* This empty div will be used for auto-scrolling to bottom */}
+             <div ref={questionInputRef} />
               {showInstructions && INSTRUCTIONS.getContent()}
+
             </>
           ) : (
             <div>
@@ -478,6 +668,8 @@ const Dashboard = () => {
               )}
             </div>
           )}
+          {/* Anchor for scrolling */}
+          <div ref={questionInputRef} />
         </div>
 
         {activeTab === "QA" && (
@@ -492,7 +684,7 @@ const Dashboard = () => {
       </div>
 
       {/* Right Panel (1 part) */}
-      <div className="w-full md:w-1/5 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]">
+      <div className="w-full md:w-1/4 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]">
       <div className="bg-white text-black p-2 rounded-t-sm flex flex-col justify-between items-center border-b shadow-md sticky top-0">
           {/* Header Text */}
           <div className="w-full flex justify-between items-center">
