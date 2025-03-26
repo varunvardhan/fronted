@@ -1,5 +1,4 @@
-// src/config/router.js
-import { createBrowserRouter, Route } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 import { AuthProvider } from '../context/AuthContext';
 import SuperAdmin from '../Pages/SuperAdmin';
 import Dashboard from '../Pages/Dashboard';
@@ -13,17 +12,17 @@ const router = createBrowserRouter([
         path: "/",
         element: (
             <AuthProvider>
-                <Route>
-                    <Route path="/" element={<Login />} />
-                    <Route
-                        path="dashboard"
-                        element={
-                            <ProtectedRoute>
-                                <Dashboard />
-                            </ProtectedRoute>
-                        }
-                    />
-                </Route>
+                <Login />
+            </AuthProvider>
+        ),
+    },
+    {
+        path: "/dashboard",
+        element: (
+            <AuthProvider>
+                <ProtectedRoute>
+                    <Dashboard />
+                </ProtectedRoute>
             </AuthProvider>
         ),
     },
@@ -42,7 +41,7 @@ const router = createBrowserRouter([
                 element: <AdminRegister />
             },
             {
-                path: "users", // This becomes /superadmin/admin-register
+                path: "users", // This becomes /superadmin/users
                 element: <UsersList />
             }
         ]

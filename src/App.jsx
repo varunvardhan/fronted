@@ -4,9 +4,14 @@ import { AuthProvider } from "./context/AuthContext";
 import { ToastContainer } from "react-toastify";
 import { useEffect } from "react";
 import { isSessionExpired, removeUserData } from "./Helper/LocalStorageHelper";
+
+// Import all your pages
 import Dashboard from './Pages/Dashboard';
-import ProtectedRoute from './config/ProtectedRoute';
 import Login from './Pages/Login';
+import SuperAdmin from './Pages/SuperAdmin';
+import AdminRegister from './Pages/AdminRegister';
+import UsersList from './Pages/UsersList';
+import ProtectedRoute from './config/ProtectedRoute';
 
 function App() {
     useEffect(() => {
@@ -30,15 +35,28 @@ function App() {
                         {/* Public Route */}
                         <Route path="/" element={<Login />} />
 
-                        {/* Protected Route */}
-                        <Route
-                            path="dashboard"
+                        {/* Protected Routes */}
+                        <Route 
+                            path="/dashboard" 
                             element={
                                 <ProtectedRoute>
                                     <Dashboard />
                                 </ProtectedRoute>
-                            }
+                            } 
                         />
+
+                        {/* SuperAdmin Protected Routes */}
+                        <Route 
+                            path="/superadmin" 
+                            element={
+                                <ProtectedRoute>
+                                    <SuperAdmin />
+                                </ProtectedRoute>
+                            } 
+                        >
+                            <Route path="admin-register" element={<AdminRegister />} />
+                            <Route path="users" element={<UsersList />} />
+                        </Route>
                     </Routes>
                 </AuthProvider>
             </Router>
