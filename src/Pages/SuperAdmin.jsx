@@ -1,13 +1,15 @@
+// src/Pages/SuperAdmin.jsx
 import React, { useEffect, useState } from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { removeUserData } from "../Helper/LocalStorageHelper";
 import { LogOut, Menu, X } from "lucide-react";
 import { Sidebar, SidebarItem, SidebarItemGroup } from "flowbite-react";
-import { HiChartPie, HiShoppingBag } from "react-icons/hi";
+import { HiShoppingBag, HiChartBar } from "react-icons/hi";
 import { FaBorderAll } from "react-icons/fa6";
 
 export default function SuperAdmin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -23,10 +25,13 @@ export default function SuperAdmin() {
   };
 
   const navigationItems = [
-    { path: "#", Icon: HiChartPie, label: "Dashboard" },
     { path: "admin-register", Icon: HiShoppingBag, label: "Register" },
     { path: "users", Icon: FaBorderAll, label: "Users" },
+    { path: "user-stats", Icon: HiChartBar, label: "User Stats" },
   ];
+
+  // Highlight active route
+  const isActive = (path) => location.pathname.includes(path);
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
@@ -50,7 +55,13 @@ export default function SuperAdmin() {
           <Sidebar className="h-full">
             <SidebarItemGroup className="space-y-3">
               {navigationItems.map(({ path, Icon, label }) => (
-                <SidebarItem key={path} as={Link} to={path} onClick={() => setIsMenuOpen(false)}>
+                <SidebarItem 
+                  key={path} 
+                  as={Link} 
+                  to={path} 
+                  onClick={() => setIsMenuOpen(false)}
+                  active={isActive(path)}
+                >
                   <Icon className="mr-3" size={22} /> {label}
                 </SidebarItem>
               ))}

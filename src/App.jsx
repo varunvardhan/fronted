@@ -1,5 +1,5 @@
 // src/App.jsx
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastContainer } from "react-toastify";
 import { useEffect } from "react";
@@ -11,6 +11,7 @@ import Login from './Pages/Login';
 import SuperAdmin from './Pages/SuperAdmin';
 import AdminRegister from './Pages/AdminRegister';
 import UsersList from './Pages/UsersList';
+import UserStatsTable from './Pages/UserStatsTable';
 import ProtectedRoute from './config/ProtectedRoute';
 
 function App() {
@@ -54,8 +55,10 @@ function App() {
                                 </ProtectedRoute>
                             } 
                         >
+                            <Route index element={<Navigate to="admin-register" replace />} />
                             <Route path="admin-register" element={<AdminRegister />} />
                             <Route path="users" element={<UsersList />} />
+                            <Route path="user-stats" element={<UserStatsTable />} />
                         </Route>
                     </Routes>
                 </AuthProvider>

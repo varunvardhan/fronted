@@ -6,6 +6,7 @@ import AdminRegister from '../Pages/AdminRegister';
 import UsersList from '../Pages/UsersList';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from '../Pages/Login';
+import UserStatsTable from '../Pages/UserStatsTable'; 
 
 const router = createBrowserRouter([
     {
@@ -28,24 +29,26 @@ const router = createBrowserRouter([
     },
     {
         path: "/superadmin",
-        element: (
-            <AuthProvider>
-                <ProtectedRoute>
-                    <SuperAdmin />
-                </ProtectedRoute>
-            </AuthProvider>
-        ),
+        element: <SuperAdmin />,
         children: [
-            {
-                path: "admin-register", // This becomes /superadmin/admin-register
-                element: <AdminRegister />
-            },
-            {
-                path: "users", // This becomes /superadmin/users
-                element: <UsersList />
-            }
+          {
+            path: "admin-register",
+            element: <AdminRegister />
+          },
+          {
+            path: "users",
+            element: <UsersList />
+          },
+          {
+            path: "user-stats",
+            element: <UserStatsTable />
+          },
+          {
+            index: true,
+            element: <Navigate to="admin-register" replace />
+          }
         ]
-    },
+      }
 ]);
 
 export default router;

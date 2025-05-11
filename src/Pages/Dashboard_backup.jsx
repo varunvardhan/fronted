@@ -1,68 +1,153 @@
-import React, { useState ,useEffect} from "react";
-import { LogOut } from "lucide-react";
-import { analyzeResume } from "../config/axios.config.js";
+import React, { useState, useEffect, useRef } from "react";
+import { LogOut, ExternalLink, FileText, Download, AlertTriangle, Loader2 } from "lucide-react";
+import { analyzeResumesBulk } from '/src/config/axios.config.js';
+import { fetchResumeFromApi } from '/src/config/axios.config.js';
+import { fetchCandidateAnalysis } from '/src/config/axios.config.js';
 import { useNavigate } from "react-router-dom";
 import { removeUserData } from "../Helper/LocalStorageHelper.js";
 import { INSTRUCTIONS } from "../config/constants.jsx";
 import QuestionComponent from '../component/QuestionComponent.jsx';
-import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+
 
 const Dashboard = () => {
   const navigate = useNavigate();
 
-  const [showMatching, setShowMatching] = useState(false);
-  const [showMissing, setShowMissing] = useState(false);
-  const [showAdditional, setShowAdditional] = useState(false);
-
+  // State declarations
   const [matchingText, setMatchingText] = useState("");
-  const [matchingTextRightPanel, setMatchingTextRightPanel] = useState("");
   const [detailedComparison, setDetailedComparison] = useState([]);
-  const [missingText, setMissingText] = useState("");
-  const [additionalText, setAdditionalText] = useState("");
-
-  // State for questions
   const [beginnerQuestions, setBeginnerQuestions] = useState([]);
   const [intermediateQuestions, setIntermediateQuestions] = useState([]);
   const [expertQuestions, setExpertQuestions] = useState([]);
-  const [allEntries, setAllEntries] = useState([]); // Store both prompts and questions
-
-
+  const [allEntries, setAllEntries] = useState([]);
   const [jobDescription, setJobDescription] = useState("");
   const [notes, setNotes] = useState("");
   const [resume, setResume] = useState(null);
   const [loading, setLoading] = useState(false);
   const [responseMessage, setResponseMessage] = useState("");
-  const [activeSection, setActiveSection] = useState(null);
   const [showInstructions, setShowInstructions] = useState(true);
-  const [submissionId, setSubmissionId] = useState(null);
-  const [matchingScore, setMatchingScore] = useState(null);
-  const [showScore, setShowScore] = useState(false);
   const [errors, setErrors] = useState({});
-
-
+  const [allResumeResults, setAllResumeResults] = useState([]);
+  const [selectedCandidateAnalysis, setSelectedCandidateAnalysis] = useState(null);
+  const [isFetchingAnalysis, setIsFetchingAnalysis] = useState(false);
+  const [disabledCandidates, setDisabledCandidates] = useState(new Set());
+  const [processedCandidates, setProcessedCandidates] = useState(new Set());
   const [activeTab, setActiveTab] = useState("QA");
+  const [currentCandidateId, setCurrentCandidateId] = useState(null);
+  const [resumePreviewInfo, setResumePreviewInfo] = useState(null);
+  const [isResumeLoading, setIsResumeLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [resumeCache, setResumeCache] = useState({});
+  const [currentCandidate, setCurrentCandidate] = useState(null); // Track selected candidate
+  const [showTabs, setShowTabs] = useState(false); // Control tab visibility
+  const [cv_notes, setCvNotes] = useState("");
 
-  const validateForm = () => {
-    if (!jobDescription.trim()) {
-      alert("Job description is required.");
-      return false;
+  // Refs
+  const candidatesListRef = useRef(null);
+  const resultsHeaderRef = useRef(null);
+  const middlePanelRef = useRef(null);
+  const questionInputRef = useRef(null);
+
+
+  const handleReset = () => {
+    // Clear all state variables
+    setMatchingText("");
+    setDetailedComparison([]);
+    setBeginnerQuestions([]);
+    setIntermediateQuestions([]);
+    setExpertQuestions([]);
+    setAllEntries([]);
+    setJobDescription("");
+    setNotes("");
+    setResume(null);
+    setResponseMessage("");
+    setAllResumeResults([]);
+    setSelectedCandidateAnalysis(null);
+    setCurrentCandidateId(null);
+    setProcessedCandidates(new Set());
+    setDisabledCandidates(new Set());
+    setActiveTab("QA");
+    setResumePreviewInfo(null);
+    setCurrentCandidate(null);
+    setShowTabs(false);
+    setCvNotes("");
+    setProgress(0);
+    
+    // Clear file input
+    const fileInput = document.getElementById('resumeUpload');
+    if (fileInput) {
+      fileInput.value = '';
     }
-    if (!resume) {
-      alert("Resume is required.");
-      return false;
-    }
-   
-  
-    return true; // Return true if no errors
+    
+    // Show instructions again
+    setShowInstructions(true);
+    
+    // Clear any errors
+    setErrors({});
+    
+    // Clear local storage cache for this session
+    allResumeResults.forEach(result => {
+      localStorage.removeItem(`analysis_${result.submissionId}`);
+      localStorage.removeItem(`resume_${result.submissionId}`);
+    });
+    
+    // Revoke any blob URLs
+    allResumeResults.forEach(result => {
+      const cachedResume = JSON.parse(localStorage.getItem(`resume_${result.submissionId}`));
+      if (cachedResume?.url?.startsWith('blob:')) {
+        URL.revokeObjectURL(cachedResume.url);
+      }
+    });
+    
+    toast.success("All data has been reset", {
+      position: "top-center",
+      autoClose: 2000,
+    });
   };
+
+  // Auto scroll left panel
+  useEffect(() => {
+    if (allResumeResults.length > 0 && !loading) {
+      const timer = setTimeout(() => {
+        const container = candidatesListRef.current;
+        const resultsSection = resultsHeaderRef.current;
+        if (container && resultsSection) {
+          // Calculate position to scroll to
+          const scrollPosition = resultsSection.offsetTop - container.offsetTop - 20;
+          // Smooth scroll
+          container.scrollTo({
+            top: scrollPosition,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [allResumeResults.length, loading]);
   
+  // Auto-scroll effects
+  /*
+  useEffect(() => {
+    if (middlePanelRef.current && (beginnerQuestions.length > 0 || intermediateQuestions.length > 0 || expertQuestions.length > 0 || allEntries.length > 0)) {
+      middlePanelRef.current.scrollTop = middlePanelRef.current.scrollHeight;
+    }
+  }, [beginnerQuestions, intermediateQuestions, expertQuestions, allEntries]);
+
+  useEffect(() => {
+    if (allResumeResults.length > 0 && candidatesListRef.current) {
+      if (!currentCandidateId) {
+        candidatesListRef.current.scrollTop = 0;
+      }
+    }
+  }, [allResumeResults, currentCandidateId]);
+*/
   useEffect(() => {
     if (responseMessage) {
       toast.success(responseMessage, {
         position: "top-center",
-        autoClose: 2000, 
+        autoClose: 2000,
         hideProgressBar: false,
         closeOnClick: true,
         pauseOnHover: true,
@@ -73,7 +158,18 @@ const Dashboard = () => {
     }
   }, [responseMessage]);
 
-  // Helper to check if any question categories have items
+  const validateForm = () => {
+    if (!jobDescription.trim()) {
+      alert("Job description is required.");
+      return false;
+    }
+    if (!resume) {
+      alert("Resume is required.");
+      return false;
+    }
+    return true;
+  };
+
   const hasQuestions = () => {
     return (
       beginnerQuestions.length > 0 ||
@@ -82,27 +178,113 @@ const Dashboard = () => {
     );
   };
 
-  // Function to toggle section visibility
-  const toggleSection = (section) => {
-    setActiveSection(activeSection === section ? null : section);
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    if (tab === "Resume" && currentCandidateId) {
+      // Clear previous resume preview when switching candidates
+      setResumePreviewInfo(null);
+      loadResumePreview(currentCandidateId);
+    }
   };
 
-  const handleUpload = (event) => {
-    const file = event.target.files[0];
-    const allowedTypes = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]; // PDF and DOCX MIME types
+  const loadResumePreview = async (submissionId) => {
+    if (!submissionId) return;
   
-    if (file && !allowedTypes.includes(file.type)) {
-      alert("Only PDF and DOCX files are allowed."); // Alert for invalid file
-      setErrors((prev) => ({ ...prev, resume: "Only PDF and DOCX files are allowed." }));
-      setResume(null);
-    } else {
-      setErrors((prev) => ({ ...prev, resume: "" })); // Clear error message
-      setResume(file);
-      alert("File uploaded successfully!"); // Confirmation alert for valid file
+    // First check in-memory cache
+    if (resumeCache[submissionId] && !resumeCache[submissionId].error) {
+      setResumePreviewInfo(resumeCache[submissionId]);
+      return;
+    }
+  
+    // Then check localStorage
+    const cachedResume = JSON.parse(localStorage.getItem(`resume_${submissionId}`));
+    if (cachedResume && !cachedResume.error) {
+      setResumeCache(prev => ({ ...prev, [submissionId]: cachedResume }));
+      setResumePreviewInfo(cachedResume);
+      return;
+    }
+  
+    setIsResumeLoading(true);
+    
+    try {
+      const response = await fetchResumeFromApi(submissionId);
+      
+      if (response.error) throw new Error(response.message);
+  
+      const resumeData = {
+        url: response.url,
+        type: response.type,
+        name: response.name,
+        error: false,
+        lastFetched: Date.now()
+      };
+  
+      // Update both caches
+      localStorage.setItem(`resume_${submissionId}`, JSON.stringify(resumeData));
+      setResumeCache(prev => ({ ...prev, [submissionId]: resumeData }));
+      setResumePreviewInfo(resumeData);
+      
+    } catch (error) {
+      const fallbackInfo = {
+        url: '/placeholder-resume.png',
+        type: 'image/png',
+        name: 'Resume Not Available.png',
+        error: true,
+        errorMessage: error.message
+      };
+      
+      localStorage.setItem(`resume_${submissionId}`, JSON.stringify(fallbackInfo));
+      setResumeCache(prev => ({ ...prev, [submissionId]: fallbackInfo }));
+      setResumePreviewInfo(fallbackInfo);
+      
+    } finally {
+      setIsResumeLoading(false);
     }
   };
   
-  
+
+  useEffect(() => {
+    return () => {
+      // Clean up blob URLs when component unmounts
+      allResumeResults.forEach(result => {
+        const cachedResume = JSON.parse(localStorage.getItem(`resume_${result.submissionId}`));
+        if (cachedResume?.url?.startsWith('blob:')) {
+          URL.revokeObjectURL(cachedResume.url);
+        }
+      });
+    };
+  }, [allResumeResults]);
+
+  const handleUpload = (event) => {
+    const files = Array.from(event.target.files);
+    const allowedTypes = [
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/msword",
+      ".pdf", ".doc", ".docx" // Add extensions for broader compatibility
+    ];
+    
+    try {
+      const invalidFiles = files.filter(file => 
+        !allowedTypes.includes(file.type) && 
+        !allowedTypes.some(ext => file.name.toLowerCase().endsWith(ext))
+      );
+      
+      if (invalidFiles.length > 0) {
+        setErrors(prev => ({ ...prev, resume: "Only PDF, DOC, and DOCX files are allowed." }));
+        event.target.value = ""; // Clear invalid selection
+        return;
+      }
+      
+      setErrors(prev => ({ ...prev, resume: "" }));
+      setResume(files);
+    } catch (error) {
+      setErrors(prev => ({ ...prev, resume: error.message }));
+      setResume(null);
+      event.target.value = "";
+      toast.error(error.message);
+    }
+  };
 
   const handleLogout = () => {
     removeUserData();
@@ -111,123 +293,348 @@ const Dashboard = () => {
 
   const handleAnalyze = async () => {
     setLoading(true);
+    setProgress(5); 
     setResponseMessage("");
-  
-    if (validateForm()) {
-      console.log("Form submitted:", { jobDescription, resume, notes });
-    }
-  
-    try {
-      const result = await analyzeResume(jobDescription, resume, notes);
-      console.log("Full Response Data:", result);
-  
-      if (result.success && result.data && result.data.analysis) {
-        const analysis = result.data.analysis;
-  
-        // Extract and update matching areas
-        setMatchingText(
-          analysis.matching_areas?.map(area => `${area.skill}`).join(", ") ||
-          "No matching areas found"
-        );
-  
-        setMatchingTextRightPanel(
-          analysis.matching_areas
-            ?.map(area => `${area.skill} (${area.years_of_experience || "N/A"})`)
-            .join("\n") || "No matching areas found"
-        );
-  
-        // Extract and update missing/additional areas
-        setMissingText(analysis.missing_areas?.join(", ") || "No missing areas found");
-        setAdditionalText(analysis.additional_areas?.join(", ") || "No additional areas found");
-  
-        // Handle detailed comparison separately
-        try {
-          const parsedAnalysis = result.data.detailed_analysis
-            ? JSON.parse(result.data.detailed_analysis)
-            : {};
-  
-          setDetailedComparison(
-            Array.isArray(parsedAnalysis.detailed_comparison)
-              ? parsedAnalysis.detailed_comparison.map(area => ({
-                  requirement: area.requirement,
-                  candidate_experience: area.candidate_experience || "N/A",
-                  evidence: area.evidence || "No evidence provided",
-                }))
-              : []
-          );
-        } catch (error) {
-          console.error("Error parsing detailed_analysis:", error);
-          setDetailedComparison([]);
-        }
-  
-        // Extract and update screening questions
-        setBeginnerQuestions(analysis.screening_questions?.beginner || []);
-        setIntermediateQuestions(analysis.screening_questions?.intermediate || []);
-        setExpertQuestions(analysis.screening_questions?.expert || []);
-  
-        // Set submission ID and matching score
-        setSubmissionId(result.data.submission_id);
-        try {
-          const parsedAnalysis = JSON.parse(result.data.detailed_analysis || "{}");
-          setMatchingScore(parsedAnalysis.matching_score || 0);
-        } catch (error) {
-          console.error("Error parsing detailed_analysis:", error);
-          setMatchingScore(0); // Fallback in case of parsing error
-        }
-        
+    setSelectedCandidateAnalysis(null);
+    setMatchingText("");
+    setDetailedComparison([]);
+    setBeginnerQuestions([]);
+    setIntermediateQuestions([]);
+    setExpertQuestions([]);
+    setAllEntries([]);
+    setCurrentCandidateId(null);
+    setProcessedCandidates(new Set());
+    setAllResumeResults([]);
+    setResumePreviewInfo(null);
+    setActiveTab("QA");
+    setCurrentCandidate(null);
+    setShowTabs(false);
 
-  
-        setShowInstructions(false);
-        setShowScore(true);
-        setResponseMessage("Analysis completed successfully!");
-      } else {
-        console.error("Invalid API response format:", result);
-        setResponseMessage("Analysis failed. Invalid response.");
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const batchSize = 2;
+      let allResults = [];
+      const totalResumes = resume.length;
+      const progressIncrement = 90 / totalResumes; // Reserve 5% for completion
+      
+      // Initial processing message
+      setResponseMessage("Starting analysis...");
+      
+      const resumeBatches = [];
+      for (let i = 0; i < totalResumes; i += batchSize) {
+        resumeBatches.push(resume.slice(i, i + batchSize));
+      }
+
+      for (let batchIndex = 0; batchIndex < resumeBatches.length; batchIndex++) {
+        const batch = resumeBatches[batchIndex];
+        const batchResult = await analyzeResumesBulk(jobDescription, batch, notes, cv_notes);
+        
+        if (!batchResult.success) {
+          let errorMessage = batchResult.message;
+          
+          if (batchResult.errorType === "network") {
+            errorMessage = "Network error: Please check your internet connection";
+          } else if (batchResult.errorType === "authentication") {
+            navigate("/login");
+            return;
+          }
+          
+          setResponseMessage(errorMessage);
+          toast.error(errorMessage);
+          return;
+        }
+
+        if (Array.isArray(batchResult.data?.results)) {
+          for (const entry of batchResult.data.results) {
+            let parsedAnalysis = {};
+            try {
+              parsedAnalysis = JSON.parse(entry.detailed_analysis || "{}");
+            } catch (error) {
+              console.error(`Failed to parse analysis for ${entry.resume_file}`, error);
+            }
+            
+            const processedResult = {
+              fileName: entry.resume_file,
+              submissionId: entry.submission_id,
+              name: parsedAnalysis.Name || "Unknown",
+              matching_score: parsedAnalysis.matching_score || 0,
+              promptQuestions: [],
+            };
+
+            allResults = [...allResults, processedResult];
+            const currentProgress = Math.floor((allResults.length / totalResumes) * 100);
+            setProgress(currentProgress);
+            setResponseMessage(`Processing... ${allResults.length}/${totalResumes} resumes completed`);
+
+            setMatchingText(`Candidate: ${processedResult.name}`);
+            setDetailedComparison([{
+              requirement: "Name",
+              candidate_experience: processedResult.name,
+              evidence: "From resume metadata"
+            }]);
+            
+            setShowInstructions(false);
+
+            const sortedResults = [...allResults].sort((a, b) => (b.matching_score || 0) - (a.matching_score || 0));
+            setAllResumeResults(sortedResults);
+          }
+        } else {
+          setResponseMessage("Invalid analysis data format in batch");
+          break;
+        }
+      }
+
+      if (allResults.length > 0) {
+        // Complete the progress
+        setProgress(100);
+        setResponseMessage(`Analysis completed successfully! Processed ${allResults.length} resumes.`);
+        toast.success(`Processed ${allResults.length} resumes`);
+        setProgress(100);
+          // Scroll the left panel after a small delay to ensure the DOM has updated
+          setTimeout(() => {
+            if (candidatesListRef.current) {
+              candidatesListRef.current.scrollTo({
+                top: candidatesListRef.current.scrollHeight,
+                behavior: 'smooth'
+              });
+            }
+          }, 300);
       }
     } catch (error) {
-      console.error("Request error:", error);
-      setResponseMessage("Failed to analyze. Please try again.");
+      console.error("Unexpected error:", error);
+      setResponseMessage("An unexpected error occurred during batch processing");
+      toast.error("An unexpected error occurred during batch processing");
     } finally {
       setLoading(false);
+      setTimeout(() => setProgress(0), 1000);
     }
   };
-  
- 
-  // Function to add a question to the appropriate category
-  const onAddQuestion = (question, level, answer) => {
-    const newEntry = { question, answer, level };
 
-    setAllEntries((prev) => {
-      let updatedEntries = [...prev];
-
-      // Find the last prompt index
-      let lastPromptIndex = updatedEntries.map((e) => e.level).lastIndexOf("Prompt");
-
-      if (level === "Prompt") {
-        // Add new prompt at the end
-        updatedEntries.push(newEntry);
-      } else {
-        // Insert new questions after the last prompt
-        if (lastPromptIndex !== -1) {
-          updatedEntries.splice(lastPromptIndex + 1, 0, newEntry);
-        } else {
-          updatedEntries.push(newEntry); // If no prompt, append normally
+  const handleCandidateClick = async (candidate) => {
+    // Always switch to Q&A tab when clicking a candidate
+    setActiveTab("QA");
+    
+    
+    
+    // If already processed, just display the cached data
+    if (processedCandidates.has(candidate.submissionId)) {
+      setCurrentCandidateId(candidate.submissionId);
+      const cachedAnalysis = localStorage.getItem(`analysis_${candidate.submissionId}`);
+      if (cachedAnalysis) {
+        try {
+          const parsedData = JSON.parse(cachedAnalysis);
+          processSuccessfulResponse(parsedData, candidate);
+          
+        } catch (e) {
+          console.warn('Failed to parse cached analysis', e);
         }
       }
-      return updatedEntries;
+      return;
+    }
+
+    // Check local storage first
+    const cachedAnalysis = localStorage.getItem(`analysis_${candidate.submissionId}`);
+    if (cachedAnalysis) {
+      try {
+        const parsedData = JSON.parse(cachedAnalysis);
+        if (isValidAnalysisData(parsedData)) {
+          processSuccessfulResponse(parsedData, candidate);
+          return;
+        }
+      } catch (e) {
+        console.warn('[Cache] Failed to parse cached data, proceeding with API call', e);
+      }
+    }
+
+    // Lock this specific candidate
+    setDisabledCandidates(prev => new Set(prev).add(candidate.submissionId));
+    setIsFetchingAnalysis(true);
+    setCurrentCandidateId(candidate.submissionId);
+
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 1000;
+    const MAX_DELAY_MS = 10000;
+    let retryCount = 0;
+    let lastError = null;
+
+    const getDelay = (attempt) => {
+      const exponentialDelay = Math.min(BASE_DELAY_MS * Math.pow(2, attempt), MAX_DELAY_MS);
+      const jitter = exponentialDelay * 0.2 * Math.random();
+      return exponentialDelay + jitter;
+    };
+
+    const isValidAnalysisData = (data) => {
+      if (data?.error) return false;
+      if (!data?.ai_analysis) return false;
+      return true;
+    };
+
+    const executeAnalysis = async () => {
+      try {
+        const result = await fetchCandidateAnalysis(candidate.submissionId);
+        
+        if (result.data?.error) {
+          return {
+            shouldRetry: result.data.error.includes('try again'),
+            error: result.data.error
+          };
+        }
+        
+        if (!result.success) {
+          lastError = result.message;
+          
+          if (result.errorType === "network") {
+            lastError = "Network error: Please check your connection";
+            return { shouldRetry: true, error: lastError };
+          } 
+          if (result.errorType === "authentication") {
+            navigate("/login");
+            return { shouldRetry: false };
+          }
+          
+          return { shouldRetry: false, error: lastError };
+        }
+
+        return { shouldRetry: false, data: result.data };
+      } catch (error) {
+        return { shouldRetry: true, error: "An unexpected error occurred" };
+      }
+    };
+
+    while (retryCount < MAX_RETRIES) {
+      const { shouldRetry, error, data } = await executeAnalysis();
+      
+      if (!shouldRetry) {
+        if (data) {
+          try {
+            localStorage.setItem(`analysis_${candidate.submissionId}`, JSON.stringify(data));
+          } catch (e) {
+            console.warn('[Cache] Failed to store analysis result', e);
+          }
+          
+          processSuccessfulResponse(data, candidate);
+          
+          if (data.error) {
+            toast.warning(`Analysis completed with warnings: ${data.error}`);
+          }
+        } else {
+          toast.error(error || "Analysis failed");
+        }
+        break;
+      }
+      
+      if (retryCount < MAX_RETRIES - 1) {
+        const delay = getDelay(retryCount);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        retryCount++;
+      } else {
+        toast.error(error || "Analysis failed after multiple attempts");
+        break;
+      }
+    }
+
+    setIsFetchingAnalysis(false);
+    setDisabledCandidates(prev => {
+      const updated = new Set(prev);
+      updated.delete(candidate.submissionId);
+      return updated;
     });
   };
 
+  const DocumentFallback = ({ url, name, isPdf }) => (
+    <div className="flex flex-col items-center justify-center h-full p-4 bg-gray-50">
+      <AlertTriangle className="w-12 h-12 text-yellow-500 mb-4" />
+      <p className="text-gray-600 mb-4">
+        {isPdf 
+          ? "PDF viewer not available in your browser"
+          : "Could not load document preview"}
+      </p>
+      <a 
+        href={url} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        download={name}
+      >
+        Download {isPdf ? 'PDF' : 'Document'}
+      </a>
+    </div>
+  );
+
+  const UnsupportedFileFallback = ({ url, name }) => (
+    <div className="flex-1 flex flex-col items-center justify-center p-4 bg-gray-50">
+      <FileText className="w-12 h-12 text-gray-400 mb-4" />
+      <p className="text-gray-500 mb-4">Preview not available for this file type</p>
+      <a 
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        download={name}
+      >
+        <Download className="mr-2 inline" size={16} />
+        Download File
+      </a>
+    </div>
+  );
+
+  const processSuccessfulResponse = (data, candidate) => {
+    if (!data?.ai_analysis) return;
+
+    setCurrentCandidateId(candidate.submissionId);
+    setProcessedCandidates(prev => new Set(prev).add(candidate.submissionId));
+    
+    const aiAnalysis = data.ai_analysis;
+    setMatchingText(`Candidate: ${candidate.name}`);
+    setSelectedCandidateAnalysis(aiAnalysis);
+    setCurrentCandidate(candidate);
+    setShowTabs(true);
+
+    setDetailedComparison(
+      (aiAnalysis.detailed_comparison || []).map((item) => ({
+        requirement: item.requirement || "Not specified",
+        candidate_experience: item.candidate_experience || "Not found",
+        evidence: "From resume analysis",
+      }))
+    );
+
+    const screeningQuestions = aiAnalysis.screening_questions || {};
+    setBeginnerQuestions(screeningQuestions.beginner || []);
+    setIntermediateQuestions(screeningQuestions.intermediate || []);
+    setExpertQuestions(screeningQuestions.expert || []);
+
+    setAllEntries(candidate.promptQuestions || []);
+    questionInputRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const onAddQuestion = (question, level, answer) => {
+    const newEntry = { question, answer, level };
+    setAllEntries((prev) => [...prev, newEntry]);
+  
+    if (currentCandidateId) {
+      setAllResumeResults((prevResults) =>
+        prevResults.map((candidate) =>
+          candidate.submissionId === currentCandidateId
+            ? { 
+                ...candidate, 
+                promptQuestions: [...(candidate.promptQuestions || []), newEntry]
+              }
+            : candidate
+        )
+      );
+    }
+  };
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 md:p-1">
-      {/* Left Panel (Fixed Height with Scrollable Content) */}
-      <div
-        className="w-full md:w-1/3 bg-white md:p-2 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto"
-      >
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-200 md:p-1">
+      {/* Left Panel */}
+      <div className="w-full md:w-1/4 bg-white md:p-2 shadow-lg rounded-xl flex flex-col border border-gray-200 h-[calc(100vh-20px)] overflow-y-auto" ref={candidatesListRef}>
         <div className="border border-gray-200 rounded-lg p-2 shadow-md">
-
-          <div className="flex justify-between items-center mt-4 mb-2">
+          <div className="flex justify-between items-center py-3 bg-white border-b border-gray-200 rounded-t-lg shadow-sm">
             <h2 className="text-lg font-bold text-gray-700">Job Description</h2>
           </div>
 
@@ -240,115 +647,126 @@ const Dashboard = () => {
               setErrors((prev) => ({ ...prev, jobDescription: "" }));
             }}
           />
-          {errors.jobDescription && <p className="text-red-500 text-sm">{errors.jobDescription}</p>}
 
-          <h2 className="text-lg font-bold mb-2 text-gray-700">Attach Resume (PDF or DOCX only)</h2>
+          <h2 className="text-lg font-bold mb-2 text-gray-700">Attach Resume (PDF,DOC and DOCX only)</h2>
           <input
             type="file"
+            id="resumeUpload"
             className="w-full bg-blue-500 text-white rounded-lg cursor-pointer mb-2"
+            accept=".pdf, .docx"
+            multiple
             onChange={handleUpload}
           />
+
           {errors.resume && <p className="text-red-500 text-sm">{errors.resume}</p>}
+
+              {/* New CV Scoring Notes Section */}
+              <h2 className="text-lg font-bold mb-1 text-gray-700">CV Scoring Notes</h2>
+              <textarea
+                className="w-full p-2 h-32 border border-gray-300 rounded-lg mb-4"
+                placeholder="Type or paste keywords for scoring..."
+                value={cv_notes}  // New state variable
+                onChange={(e) => setCvNotes(e.target.value)}
+              />
+           
 
           <h2 className="text-lg font-bold mb-1 text-gray-700">Additional Notes (Optional)</h2>
           <textarea
             className="w-full p-1 h-40 border rounded-lg mb-4 flex flex-col min-h-[80px] "
             placeholder="Type or paste additional notes here...."
             value={notes}
-            onChange={(e) => {
-              setNotes(e.target.value);
-            }}
+            onChange={(e) => setNotes(e.target.value)}
           />
-          
+
+          {/* In your left panel's button section, replace the loading div with: */}
+        <div className="w-full mt-2">
+          {(loading || progress > 0) && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5">
+              <div 
+                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300 ease-out" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+          )}
           {loading && (
-            <div className="w-full bg-gray-300 h-1 rounded-full overflow-hidden  relative">
-              <div className="h-full rounded-full animate-[loading_1.5s_linear_infinite] bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"></div>
-              <style>
-                {`
-            @keyframes loading {
-              0% { width: 0%; }
-              50% { width: 80%; }
-              100% { width: 100%; }
-            }
-          `}
-              </style>
-            </div>
+            <p className="text-xs text-gray-500 mt-1 text-center">
+              Processing... {Math.floor(progress)}% completed
+            </p>
           )}
- {/*
-          {responseMessage && (
-            <div className=" p-1 bg-gray-200 rounded-lg mb-1 text-center">
-              {responseMessage}
-            </div>
-          )}
- */}
-          <div className="flex justify-between items-center mt-4">
-            {/* Analyze Button with Tooltip */}
-            <div className="relative group inline-block">
-              <button
-                className="bg-red-600 w-[120px] h-[36px] text-white px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:bg-red-700 flex items-center justify-center"
-                onClick={handleAnalyze}
-                disabled={loading}
-              >
-                {loading ? "Analyzing..." : "Analyze"}
-              </button>
-
-              {/* Tooltip with Overflow Protection */}
-              <div className="absolute left-auto sm:left-full top-1/2 sm:top-1/2 mt-1 sm:mt-0 -translate-y-1/2 sm:translate-x-2 bg-gray-900 text-white text-sm px-4 py-3 rounded-md opacity-0 group-hover:opacity-100 transition duration-200 shadow-md w-[300px] sm:w-[500px] h-auto max-w-[500px] break-words text-left">
-                Generate questions across beginner, intermediate, and expert levels to help assess all candidate skills.
-              </div>
-            </div>
-
-          
-          </div>
-
-
-
-
         </div>
 
-        {/* Scrollable Questions Section */}
-        {hasQuestions() &&
-          [
-            { label: "Matching Areas", state: showMatching, setter: setShowMatching, value: matchingText },
-            { label: "Missing Areas", state: showMissing, setter: setShowMissing, value: missingText },
-            { label: "Additional Areas", state: showAdditional, setter: setShowAdditional, value: additionalText },
-          ].map(({ label, state, setter, value }) => (
-            <div className="mb-4" key={label}>
-              <div className="relative group w-full">
-                <button
-                  className="w-full bg-blue-600 text-white mt-4 rounded-lg focus:outline-none shadow-md flex justify-between items-center px-4 relative"
-                  onClick={() => setter(!state)}
-                >
-                  {label}
-                  {state ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                </button>
+          <div className="flex justify-start items-center mt-4">
+            <button
+              className="bg-red-600 w-[120px] h-[36px] text-white px-4 py-2 text-sm font-semibold rounded-lg shadow-md hover:bg-red-700 flex items-center justify-center"
+              onClick={handleAnalyze}
+              disabled={loading}
+            >
+              {loading ? "Analyzing..." : "Analyze"}
+            </button>
+            <button
+              className="bg-red-600 w-[120px] h-[36px] text-white px-4 py-2 ml-2 text-sm font-semibold rounded-lg shadow-md hover:bg-red-700 flex items-center justify-center"
+              onClick={handleReset}
+              disabled={loading}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
 
-                {/* Tooltip */}
-                <div className="absolute left-1/2 -top-10 -translate-x-1/2 bg-gray-900 text-white text-sm px-3 py-1 rounded-md opacity-0 group-hover:opacity-100 transition duration-200">
-                  Click to toggle {label.toLowerCase()}
-                </div>
-              </div>
+        {allResumeResults.length > 0 && (
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold mb-2" ref={resultsHeaderRef}>All Resume Results with CV score:</h2>
+            <ul className="space-y-2">
+              {allResumeResults.map((result, index) => {
+                const isProcessed = processedCandidates.has(result.submissionId);
+                const isProcessing = disabledCandidates.has(result.submissionId);
+                const isCurrent = currentCandidateId === result.submissionId;
+                
+                return (
+                  <li
+                    key={index}
+                    className={`p-3 border rounded-lg shadow-sm ${
+                      isProcessing
+                        ? "bg-gray-200 cursor-not-allowed"
+                        : "bg-gray-100 hover:bg-gray-200 cursor-pointer"
+                    } flex justify-between`}
+                    onClick={() => !isProcessing && handleCandidateClick(result)}
+                  >
+                    <div className="space-y-2 w-full">
+                      <div className="flex items-start gap-2">
+                        <div className="flex gap-2 flex-grow">
+                          <span className="bg-blue-600 text-white text-sm font-semibold h-8 w-8 flex items-center justify-center rounded-full shadow-md flex-shrink-0">
+                            {result.matching_score}
+                          </span>
+                          <div className="flex flex-col">
+                            <strong>{result.name}</strong>
+                            <span className="text-sm text-gray-600">({result.fileName})</span>
+                          </div>
+                        </div>
 
-              {state && (
-                <textarea
-                  className="w-full p-3 border rounded-lg mt-2 focus:ring focus:ring-blue-300"
-                  placeholder={label}
-                  value={value}
-                  readOnly
-                />
-              )}
-            </div>
-          ))}
-
+                        <span className={`h-3 w-3 rounded-full mt-2 flex-shrink-0 ${
+                          isProcessing
+                            ? 'bg-red-500 animate-pulse'
+                            : isProcessed
+                              ? 'bg-green-500'
+                              : 'bg-gray-500'
+                        }`}
+                        ></span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
 
-
-      {/* Right Panel */}
-      <div className="w-full md:w-2/3 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]"
+      {/* Middle Panel */}
+      <div className="w-full md:w-3/5 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]"
         style={{ backgroundImage: "url('/whatsapp-bg.png')", backgroundSize: "cover" }}
+        ref={middlePanelRef} 
       >
-
-        {/* Fixed Header */}
         <div className="bg-white text-black p-2 rounded-t-sm flex justify-between items-center border-b shadow-md sticky top-0">
           <span className="font-bold text-xl">BMI CoPanelist Chat</span>
           <button
@@ -359,165 +777,294 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Tab Navigation */}
         <div className="flex space-x-2 bg-white-100 rounded-lg px-3 py-2">
-            {/* Candidate CV Score (Hidden Initially) */}
-            {showScore && (
-              <div className="flex items-center space-x-4">
-                <h2 className="text-lg font-bold text-gray-800">CV Score:</h2>
-                <span className="w-[120px] h-[36px] flex items-center justify-center bg-blue-600 text-white text-lg font-semibold rounded-lg shadow-md">
-                  {matchingScore}/10
-                </span>
-              </div>
-              
-            )}
-            {showScore && (
-            <button
-              className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
-                activeTab === "QA"
-                  ? "bg-blue-500 text-white font-bold shadow-md"
-                  : "bg-blue-200 text-white-700 hover:bg-blue-300"
-              }`}
-              onClick={() => setActiveTab("QA")}
-            >
-              Q&A
-            </button>)}
-            {showScore && (
-            <button
-              className={`px-4 py-2 text-sm rounded-md transition-all duration-200 ${
-                activeTab === "Matching Details"
-                  ? "bg-blue-500 text-white font-bold shadow-md"
-                  : "bg-blue-200 text-white-700 hover:bg-blue-300"
-              }`}
-              onClick={() => setActiveTab("Matching Details")}
-            >
-              JD vs CV Summary Details
-            </button>)}
-          </div>
+        {currentCandidate && (
+            <div className="flex items-center space-x-4">
+              <h2 className="text-lg font-bold text-gray-800">{currentCandidate.name} : </h2>
+            </div>
+          )}
+          {showTabs && (
+            <>
+              <button
+                className={`px-4 py-2 mt-2 text-sm rounded-md transition-all duration-200 ${
+                  activeTab === "QA"
+                    ? "bg-blue-500 text-white font-bold"
+                    : "bg-blue-500 text-white hover:bg-blue-300"
+                }`}
+                onClick={() => handleTabChange("QA")}
+              >
+                Q&A
+              </button>
+              <button
+                className={`px-4 py-2 mt-2 text-sm rounded-md transition-all duration-200 ${
+                  activeTab === "Matching Details"
+                    ? "bg-blue-500 text-white font-bold"
+                    : "bg-blue-500 text-white hover:bg-blue-300"
+                }`}
+                onClick={() => handleTabChange("Matching Details")}
+              >
+                JD vs CV Summary Details
+              </button>
+              <button
+                className={`px-4 py-2 mt-2 text-sm rounded-md transition-all duration-200 ${
+                  activeTab === "Resume"
+                    ? "bg-blue-500 text-white font-bold"
+                    : "bg-blue-500 text-white hover:bg-blue-300"
+                }`}
+                onClick={() => handleTabChange("Resume")}
+              >
+                Resume
+              </button>
+            </>
+          )}
+        </div>
 
-
-
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 ">
+        <div className="flex-1 overflow-y-auto p-2">
           {activeTab === "QA" ? (
             <>
               {beginnerQuestions.map((item, index) => (
-                <div key={`beginner-${index}`} className="rounded-lg">
-                  <div className="text-green-950 font-semibold italic text-lg leading-relaxed rounded-lg">
+                <div key={`beginner-${index}`} className="rounded-lg bg-green-50 p-2 mb-1 shadow-sm">
+                  <div className="text-green-900 font-semibold italic text-lg">
                     BQ: {item.question}
                   </div>
-                  <div className="text-green-950 font-semibold text-lg leading-relaxed rounded-lg mb-1">
+                  <div className="text-green-800 font-medium text-lg mt-1">
                     Answer: {item.answer}
                   </div>
-
                 </div>
               ))}
 
               {intermediateQuestions.map((item, index) => (
-                <div key={`intermediate-${index}`} className="rounded-lg">
-                  <div className="text-blue-900 italic font-medium text-lg leading-relaxed rounded-lg">
+                <div key={`intermediate-${index}`} className="rounded-lg bg-blue-50 p-2 mb-1 shadow-sm">
+                  <div className="text-blue-900 italic font-medium text-lg">
                     IQ: {item.question}
                   </div>
-                  <div className="text-blue-900 font-medium text-lg leading-relaxed rounded-lg mb-1">
+                  <div className="text-blue-800 font-medium text-lg mt-1">
                     Answer: {item.answer}
                   </div>
-
                 </div>
               ))}
 
               {expertQuestions.map((item, index) => (
-                <div key={`expert-${index}`} className="rounded-lg">
-                  <div className="text-[#5A3E1B] italic font-medium text-lg leading-relaxed rounded-lg">
+                <div key={`expert-${index}`} className="rounded-lg bg-amber-50 p-2 mb-1 shadow-sm">
+                  <div className="text-[#5A3E1B] italic font-medium text-lg">
                     EQ: {item.question}
                   </div>
-                  <div className="text-[#5A3E1B] font-medium text-lg leading-relaxed rounded-lg mb-1">
+                  <div className="text-[#5A3E1B] font-medium text-lg mt-1">
                     Answer: {item.answer}
                   </div>
-
-
                 </div>
               ))}
 
               {allEntries.map((item, index) => (
-                <div key={`entry-${index}`} className="rounded-lg">
-                  <div
-                    className={`italic font-medium text-lg ${item.level === "Beginner" ? "text-green-950 rounded-md" :
-                        item.level === "Intermediate" ? "text-blue-950 rounded-md" :
-                          item.level === "Expert" ? "text-[#8B4513] rounded-md" :
-                            item.level === "Prompt" ? "text-black mb-3 mt-3 rounded-md" : ""
-                      }`}
+                <div
+                  key={`entry-${index}`}
+                  className={`rounded-lg p-2 mb-1 shadow-sm ${
+                    item.level === "Beginner"
+                      ? "bg-green-50"
+                      : item.level === "Intermediate"
+                      ? "bg-blue-50"
+                      : item.level === "Expert"
+                      ? "bg-amber-50"
+                      : "bg-gray-100"
+                  }`}
+                >
+                  <div className={`italic font-medium text-lg ${
+                    item.level === "Beginner"
+                      ? "text-green-950"
+                      : item.level === "Intermediate"
+                      ? "text-blue-950"
+                      : item.level === "Expert"
+                      ? "text-[#8B4513]"
+                      : "text-black"
+                  }`}
                   >
-                    {item.level === "Beginner" ? "BQ" :
-                      item.level === "Intermediate" ? "IQ" :
-                        item.level === "Expert" ? "EQ" :
-                          item.level === "Prompt" ? "Prompt" : ""}
+                    {item.level === "Beginner"
+                      ? "BQ"
+                      : item.level === "Intermediate"
+                      ? "IQ"
+                      : item.level === "Expert"
+                      ? "EQ"
+                      : "Prompt"}
                     : {item.question}
                   </div>
 
                   {item.level !== "Prompt" && (
-                    <div
-                      className={`font-medium text-lg ${item.level === "Beginner" ? "text-green-950 rounded-md mb-1 " :
-                          item.level === "Intermediate" ? "text-blue-950  rounded-md mb-1" :
-                            item.level === "Expert" ? "text-[#8B4513] rounded-md mb-1" : ""
-                        }`}
+                    <div className={`font-medium text-lg ${
+                      item.level === "Beginner"
+                        ? "text-green-950"
+                        : item.level === "Intermediate"
+                        ? "text-blue-950"
+                        : "text-[#8B4513]"
+                    }`}
                     >
+                      Answer: {item.answer}
+                    </div>
+                  )}
+
+                  {item.level === "Prompt" && item.answer && (
+                    <div className="text-black font-medium text-lg mt-1">
                       Answer: {item.answer}
                     </div>
                   )}
                 </div>
               ))}
-
-
+              <div ref={questionInputRef} />
               {showInstructions && INSTRUCTIONS.getContent()}
             </>
-
-          ) : (
-
+          ) : activeTab === "Matching Details" ? (
             <div>
-
-
               {hasQuestions() && (
                 <div className="mb-6 space-y-6">
-                  {/* Candidate CV Score and Matching Areas */}
-                  <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-lg">
-                    <h3 className="text-2xl font-semibold text-gray-900 flex items-center mb-4">
+                  <div className="bg-white border border-gray-500 rounded-2xl p-6 shadow-lg">
+                    <h3 className="text-2xl font-semibold text--500 flex items-center mb-4">
                       JD Required Skills vs Candidate's Relevant Experience
                     </h3>
 
-
-                    {/* Comparison Section */}
                     <div className="bg-gray-100 p-4 mt-5 rounded-2xl text-black text-lg leading-relaxed whitespace-pre-line shadow-inner">
                       {detailedComparison.length > 0 ? (
                         detailedComparison.map((item, index) => (
                           <div key={index} className="mb-2">
                             <strong>{item.requirement}</strong> - {item.candidate_experience}
+                            {item.evidence && <p className="text-sm text-gray-600">{item.evidence}</p>}
                           </div>
                         ))
                       ) : (
                         <p>No matching areas found</p>
                       )}
                     </div>
-
                   </div>
                 </div>
               )}
-
-
-
+            </div>
+          ) : activeTab === "Resume" && currentCandidateId && (
+            <div className="h-full flex flex-col bg-white rounded-lg">
+              {isResumeLoading ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500 p-4">
+                  <Loader2 className="w-8 h-8 animate-spin mb-2" />
+                  <p>Loading PDF resume...</p>
+                </div>
+              ) : resumePreviewInfo?.error ? (
+                <div className="flex flex-col items-center justify-center h-full p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <AlertTriangle className="w-12 h-12 text-yellow-500 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                    PDF Resume Unavailable
+                  </h3>
+                  <p className="text-gray-600 text-center mb-4">
+                    {resumePreviewInfo.errorMessage}
+                  </p>
+                  <button 
+                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick={() => loadResumePreview(currentCandidateId)}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <div className="flex-1 flex flex-col border border-gray-300 rounded-lg overflow-hidden">
+                  <object 
+                    data={`${resumePreviewInfo?.url}#toolbar=0&navpanes=0&statusbar=0&view=fitH`}
+                    type="application/pdf"
+                    className="w-full h-full min-h-[500px] border-0"
+                  >
+                    <div className="flex flex-col items-center justify-center h-full p-4 bg-gray-50">
+                      <AlertTriangle className="w-12 h-12 text-yellow-500 mb-4" />
+                      <p className="text-gray-600 mb-4">PDF preview not available</p>
+                      <a 
+                        href={resumePreviewInfo?.url}
+                        download={resumePreviewInfo?.name}
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                      >
+                        Download PDF
+                      </a>
+                    </div>
+                  </object>
+                  <div className="p-3 bg-gray-50 border-t flex justify-center">
+                    <a 
+                      href={resumePreviewInfo?.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 flex items-center"
+                      download={resumePreviewInfo?.name}
+                    >
+                      <Download className="mr-1" size={16} />
+                      Download PDF
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
-        {/* Fixed Footer (Prompt Section) */}
+      </div>
+
         {activeTab === "QA" && (
           <div className="bg-white p-3 border-t shadow-md sticky bottom-0 z-10">
-            {submissionId && (
-              <QuestionComponent submissionId={submissionId} onAddQuestion={onAddQuestion} />
+            {showTabs && (
+              <QuestionComponent 
+                submissionId={currentCandidateId} 
+                onAddQuestion={onAddQuestion} 
+              />
             )}
           </div>
         )}
-
       </div>
 
+      {/* Right Panel */}
+      <div className="w-full md:w-1/4 bg-white p-4 md:p-1 shadow-lg rounded-xl mt-2 md:mt-0 md:ml-1 flex flex-col border border-gray-200 h-[calc(100vh-20px)]">
+        <div className="bg-white text-black p-2 rounded-t-sm flex flex-col justify-between items-center border-b shadow-md sticky top-0">
+          <div className="w-full flex justify-between items-center">
+            <span className="font-bold text-xl">Analysis Details</span>
+          </div>
+
+          {isFetchingAnalysis && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+              <div 
+                className="bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 h-2.5 rounded-full" 
+                style={{ width: `${progress}%`, transition: 'width 0.3s ease' }}
+              ></div>
+            </div>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {selectedCandidateAnalysis ? (
+            <>
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Matching Areas:</h3>
+                <ul className="space-y-2">
+                  {selectedCandidateAnalysis.matching_areas?.map((area, index) => (
+                    <li key={index} className="p-2 bg-green-100 rounded-lg">
+                      <strong>{area.skill || "Unknown skill"}</strong>: {area.years_of_experience || "N/A"}
+                    </li>
+                  )) || <li className="p-2 text-gray-500">No matching areas data</li>}
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Missing Areas:</h3>
+                <ul className="space-y-2">
+                  {selectedCandidateAnalysis.missing_areas?.map((area, index) => (
+                    <li key={index} className="p-2 bg-red-100 rounded-lg">
+                      {area || "Unknown missing skill"}
+                    </li>
+                  )) || <li className="p-2 text-gray-500">No missing areas data</li>}
+                </ul>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold mb-2">Additional Areas:</h3>
+                <ul className="space-y-2">
+                  {selectedCandidateAnalysis.additional_areas?.map((area, index) => (
+                    <li key={index} className="p-2 bg-blue-100 rounded-lg">
+                      {area || "Unknown additional skill"}
+                    </li>
+                  )) || <li className="p-2 text-gray-500">No additional areas data</li>}
+                </ul>
+              </div>
+            </>
+          ) : (
+            <p className="text-gray-500">Select a candidate to view analysis.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
