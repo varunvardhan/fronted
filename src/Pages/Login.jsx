@@ -26,14 +26,16 @@ const Login = () => {
       if (loginData.token?.access) {
         toast.success("Login Success");
 
-      
         // Ensure roles are handled correctly
         const userRoles = loginData.user?.roles;
         const isSuperAdmin = Array.isArray(userRoles)
           ? userRoles.some((role) => role.roleName === "ROLE_SUPERADMIN")
           : userRoles?.roleName === "ROLE_SUPERADMIN";
 
-        await login(loginData.token.access, { ROLE_SUPERADMIN: isSuperAdmin });
+        await login(loginData.token.access, {
+          ...loginData.user, // includes roles, email, id, username
+          ROLE_SUPERADMIN: isSuperAdmin
+        });
 
         console.log("Navigating to:", isSuperAdmin ? "/SuperAdmin" : "/dashboard");
         navigate(isSuperAdmin ? "/SuperAdmin" : "/dashboard");

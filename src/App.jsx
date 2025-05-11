@@ -13,7 +13,7 @@ import AdminRegister from './Pages/AdminRegister';
 import UsersList from './Pages/UsersList';
 import UserStatsTable from './Pages/UserStatsTable';
 import ProtectedRoute from './config/ProtectedRoute';
-
+import Admin from './Pages/Admin';
 function App() {
     useEffect(() => {
         const checkSession = () => {
@@ -59,6 +59,18 @@ function App() {
                             <Route path="admin-register" element={<AdminRegister />} />
                             <Route path="users" element={<UsersList />} />
                             <Route path="user-stats" element={<UserStatsTable />} />
+                           
+                        </Route>
+                        {/* SuperAdmin Protected Routes */}
+                        <Route 
+                            path="/admin" 
+                            element={
+                                <ProtectedRoute>
+                                    <Admin />
+                                </ProtectedRoute>
+                            } 
+                        >
+                            <Route path="user-stats" element={<UserStatsTable />} /> 
                         </Route>
                     </Routes>
                 </AuthProvider>

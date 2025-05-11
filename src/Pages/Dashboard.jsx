@@ -9,10 +9,13 @@ import { INSTRUCTIONS } from "../config/constants.jsx";
 import QuestionComponent from '../component/QuestionComponent.jsx';
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { useAuth } from "../context/AuthContext";
 
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const isAdmin = user?.roles?.some(role => role.roleName === "ROLE_ADMIN");
 
   // State declarations
   const [matchingText, setMatchingText] = useState("");
@@ -908,12 +911,22 @@ const Dashboard = () => {
       >
         <div className="bg-white text-black p-2 rounded-t-sm flex justify-between items-center border-b shadow-md sticky top-0">
           <span className="font-bold text-xl">BMI CoPanelist Chat</span>
-          <button
-            className="text-red-500 flex items-center hover:text-red-700 transition duration-200"
-            onClick={handleLogout}
-          >
-            <LogOut className="mr-2" size={24} /> Logout
-          </button>
+          <div className="flex gap-2">
+            {isAdmin && (
+              <button
+                className="text-blue-500 flex items-center hover:text-blue-700 transition duration-200"
+                onClick={() => {navigate("/admin")}}
+              >
+                <ExternalLink className="mr-2" size={24} /> Admin
+              </button>
+            )}
+            <button
+              className="text-red-500 flex items-center hover:text-red-700 transition duration-200"
+              onClick={handleLogout}
+            >
+              <LogOut className="mr-2" size={24} /> Logout
+            </button>
+          </div>
         </div>
 
         <div className="flex space-x-2 bg-white-100 rounded-lg px-3 py-2">
