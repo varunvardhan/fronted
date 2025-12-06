@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ToastContainer } from "react-toastify";
 import { useEffect } from "react";
 import { isSessionExpired, removeUserData } from "./Helper/LocalStorageHelper";
+import InterviewPage from "./Pages/InterviewPage";
 
 // Import all your pages
 import Dashboard from './Pages/Dashboard';
@@ -14,6 +15,8 @@ import UsersList from './Pages/UsersList';
 import UserStatsTable from './Pages/UserStatsTable';
 import ProtectedRoute from './config/ProtectedRoute';
 import Admin from './Pages/Admin';
+import JobManagement from "./Pages/JobManagement";
+
 function App() {
     useEffect(() => {
         const checkSession = () => {
@@ -45,7 +48,10 @@ function App() {
                                 </ProtectedRoute>
                             } 
                         />
-
+                        {/* Jobs Management */}
+                        <Route path="/jobs" element={<JobManagement />} />
+                         {/* ⭐ Dynamic Interview Page */}
+                        <Route path="/interview/:jobId" element={<InterviewPage />} />
                         {/* SuperAdmin Protected Routes */}
                         <Route 
                             path="/superadmin" 

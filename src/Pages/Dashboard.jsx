@@ -912,6 +912,12 @@ const Dashboard = () => {
         <div className="bg-white text-black p-2 rounded-t-sm flex justify-between items-center border-b shadow-md sticky top-0">
           <span className="font-bold text-xl">BMI CoPanelist Chat</span>
           <div className="flex gap-2">
+          <button
+  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition duration-200 flex items-center shadow-md"
+  onClick={() => navigate("/jobs")}
+>
+  Interview Management
+</button>
             {isAdmin && (
               <button
                 className="text-blue-500 flex items-center hover:text-blue-700 transition duration-200"

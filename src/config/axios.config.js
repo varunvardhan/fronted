@@ -308,3 +308,92 @@ const getFileExtension = (mimeType) => {
       throw error;
     }
   };
+
+  // =====================
+// Create Interview Link (Job Snippet)
+// =====================
+export const createInterviewLink = async (jobData) => {
+  try {
+    const response = await privateAxios.post(
+      "/api/auth/jobs/create-interview-link/",
+      jobData
+    );
+
+    return {
+      success: true,
+      data: response.data,
+      statusCode: response.status,
+    };
+  } catch (error) {
+    // Network Error (no response received)
+    if (error.code === "ERR_NETWORK") {
+      return {
+        success: false,
+        message: "Network error: Please check your internet connection",
+        errorType: "network",
+      };
+    }
+
+    // API Error (received response with error status)
+    if (error.response) {
+      // 401 Unauthorized
+      if (error.response.status === 401) {
+        return {
+          success: false,
+          message: "Unauthorized! Please log in again.",
+          errorType: "authentication",
+          statusCode: 401,
+        };
+      }
+
+      // Other API errors
+      return {
+        success: false,
+        message:
+          error.response.data?.message ||
+          "API Error: Failed to create interview link",
+        errorType: "api",
+        statusCode: error.response.status,
+      };
+    }
+
+    // Other Axios errors (timeouts, cancelations, etc.)
+    return {
+      success: false,
+      message: error.message || "Request failed",
+      errorType: "request",
+    };
+  }
+};
+
+export const fetchJobByJobId = async (jobId) => {
+  try {
+    const response = await publicAxios.get(`/api/auth/jobs/${jobId}/`);
+    return { success: true, data: response.data };
+  } catch (error) {
+    return handleAxiosErrors(error);
+  }
+};
+
+/*
+export const submitCandidateInterview = async (jobId, candidate) => {
+  try {
+    const formData = new FormData();
+    formData.append("job_id", jobId);
+    formData.append("name", candidate.name);
+    formData.append("email", candidate.email);
+    formData.append("resume", candidate.resume);
+
+    const response = await publicAxios.post(
+      `/api/auth/jobs/submit-interview/`,
+      formData,
+      {
+        headers: { "Content-Type": "multipart/form-data" },
+      }
+    );
+
+    return { success: true, data: response.data };
+  } catch (error) {
+    return handleAxiosErrors(error);
+  }
+};*/
